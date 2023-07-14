@@ -1,0 +1,3 @@
+[submodule "cuvis.swig"]
+	path = cuvis.swig
+	url = https://github.com/cubert-hyperspectral/cuvis.swig.git
