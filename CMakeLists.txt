@@ -4,7 +4,8 @@ PROJECT(cuvis_pyil C CXX)
 set(target_name cuvis_pyil)
 set(SWIG_LANGUAGE python)
 
-set(SWIG_OUTPUT_DIR "${EXECUTABLE_OUTPUT_PATH}/intermediate/${target_name}")
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/intermediate/${target_name}")
+set(SWIG_OUTPUT_DIR "${CMAKE_BINARY_DIR}/intermediate/${target_name}")
 
 list(APPEND CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cuvis.swig/")
@@ -21,4 +22,4 @@ endif()
 #message(${PYTHON_LIBRARIES})
 target_link_libraries(${target_name} PRIVATE ${PYTHON_LIBRARY})
 
-add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${target_name}> ${SWIG_OUTPUT_DIR} )
+add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${SWIG_OUTPUT_DIR}/cuvis_il.py"  $<TARGET_FILE_DIR:${target_name}> )
