@@ -21,5 +21,5 @@ To compile the python interface layer install your preferred version of numpy. F
 ```
 pip install numpy
 ```
-CMake will try to find the numpy path via the `np.get_include` function.
-If this does not work on your machine simply set the `Cuvis_NUMPY_PATH` variable with the return of this function by hand.
+CMake will try to find the numpy path using the `find_package(Python REQUIRED COMPONENTS Interpreter Development NumPy)`.
+To support the usage of a virtual environment, simply set the `Python_ROOT_DIR` variable to the directory containing your virtual environment.
