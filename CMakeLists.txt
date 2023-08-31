@@ -11,23 +11,22 @@ list(APPEND CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_LIST_DIR}/cuvis.swig/")
 include(cuvis_swig)
 
+set(Python_ROOT_DIR "${Python_ROOT_DIR}" CACHE PATH "Path Hint to the Python Directory")
+# FIND_PACKAGE(PythonLibs REQUIRED)
+find_package(Python REQUIRED COMPONENTS Interpreter Development NumPy)
 
-FIND_PACKAGE(PythonLibs REQUIRED)
+file(WRITE numpy_version.stamp ${Python_NumPy_VERSION})
+message("numpy version ${Python_NumPy_VERSION}")
 
-
-target_include_directories(${target_name} PUBLIC ${PYTHON_INCLUDE_DIR} )
+target_include_directories(${target_name} PUBLIC ${Python_INCLUDE_DIRS} )
 if(WIN32)
-#target_include_directories(${target_name} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include_win32_3.9" )
 
-execute_process(COMMAND CMD /c python ${CMAKE_CURRENT_SOURCE_DIR}/numpy/find_numpy.py OUTPUT_VARIABLE numpy_path)
-if("${numpy_path}" STREQUAL "no numpy")
-	message(FATAL_ERROR "numpy seems to be not installed" )
-endif()
-#message("${numpy_path}")
-set(Cuvis_NUMPY_PATH "${numpy_path}" CACHE PATH "")
-target_include_directories(${target_name} PUBLIC "${Cuvis_NUMPY_PATH}" )
+target_include_directories(${target_name} PUBLIC "${Python_NumPy_INCLUDE_DIRS}" )
 endif()
 #message(${PYTHON_LIBRARIES})
-target_link_libraries(${target_name} PRIVATE ${PYTHON_LIBRARY})
+target_link_libraries(${target_name} PRIVATE ${Python_LIBRARIES})
 
 add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${SWIG_OUTPUT_DIR}/cuvis_il.py"  $<TARGET_FILE_DIR:${target_name}> )
+
+# write where to find the compiled library 
+add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E echo "$<TARGET_FILE_DIR:${target_name}>" > "${CMAKE_CURRENT_SOURCE_DIR}/binary_dir.stamp" )
