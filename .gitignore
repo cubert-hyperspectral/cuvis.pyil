@@ -1,0 +1,10 @@
+/*.stamp
+
+% temporary venv directories
+
+venv_Python39
+venv_Python310
+venv_Python311
+/cuvis_il/*.pyd
+/cuvis_il/cuvis_il.py
+/dist

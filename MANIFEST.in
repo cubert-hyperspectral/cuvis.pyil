@@ -1,0 +1,3 @@
+recursive-include cuvis_il *.pyd 
+recursive-include cuvis_il *.so 
+include numpy_version.stamp DESCRIPTION.md  
