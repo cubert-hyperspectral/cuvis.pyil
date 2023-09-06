@@ -1,5 +1,15 @@
 # Cuvis python interface layer (required for using the python wrapper)
 
+This repository contains the python bindings for the Cuvis SDK. 
+
+## Installation
+
+For an easy installtion we provide binaries for Python 3.9, 3.10 and 3.11. These can be installed via
+
+```
+pip install cuvis-il
+```
+
 ## Building
 For building the python interface layer *cuvis_pyil*, first clone this git repository and initialize it's submodules recursively
 
@@ -18,6 +28,7 @@ This project will then generate the `_cuvis_pyil.pyd` and `cuvis_il.py` files ne
 
 ## Dependency to numpy
 The python interface layer is dependent on numpy. Specifically, this means that we need the c headers of the numpy library.
+Notice that NumPy has [backwards compatibility](https://numpy.org/doc/stable/dev/depending_on_numpy.html).
 To compile the python interface layer install your preferred version of numpy. For example
 ```
 pip install numpy
