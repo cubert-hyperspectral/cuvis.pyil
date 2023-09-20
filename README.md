@@ -10,12 +10,6 @@ cuvis.pyil is the python interface binding for the Cuvis SDK written in C ([avai
 - **Source code:** https://github.com/cubert-hyperspectral/
 - **Support:** http://support.cubert-hyperspectral.com/
 
-This wrapper enables operating Cubert GmbH Hyperspectral Cameras, as well as, 
-analyzing data directly from the corporate data format(s) within python.
-This wrapper provides an object-oriented full representation of the basic C SDK 
-capabilities and python return variable formats based on commonly used modules, 
-like dictionaries, datetime or numpy objects.
-
 For other supported program languages, please have a look at the 
 source code page.
 
