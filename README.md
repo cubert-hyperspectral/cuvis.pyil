@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 ![image](https://camo.githubusercontent.com/9fc396a08b84779ea0f78a4085e96bee6035fca702cd382f38cb661fa1ff1d0c/68747470733a2f2f7777772e7370656374726f6578706f2e636f6d2f77702d636f6e74656e742f75706c6f6164732f323031382f30372f637562657274323031382e706e67)
 
 
@@ -54,15 +47,13 @@ We currently provide compiled binaries for Python 3.9, 3.10 and 3.11 for Windows
 If you wish to download and use cuvis locally, clone the git repository
 
   ```shell
-  git clone git@github.com:cubert-hyperspectral/cuvis.python.git
+  git clone git@github.com:cubert-hyperspectral/cuvis.pyil.git
   ```
 and then initialize the submodules.
 
 ```
 git submodule update --init --recursive
 ```
-
-For building the python bindings refer to [cuvis.pyil](https://github.com/cubert-hyperspectral/cuvis.pyil).
 
 Next, you need to install the Cuvis C SDK (see https://cloud.cubert-gmbh.de/index.php/s/kKVtx0x2fmYqVgx).
 
