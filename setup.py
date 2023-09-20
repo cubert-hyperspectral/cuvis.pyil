@@ -10,7 +10,7 @@ from setuptools.command import develop
 here = os.path.abspath(os.path.dirname(__file__))
 
 NAME = 'cuvis_il'
-VERSION = '0.0.10'
+VERSION = '0.0.12'
 
 DESCRIPTION = 'Compiled Python Bindings for the CUVIS SDK.'
 
@@ -75,7 +75,7 @@ class UploadCommand(Command):
         get_pyil_files()
 
         self.status('Building Source and Wheel (universal) distribution…')
-        os.system(f'python setup.py bdist_wheel --python-tag=py{get_python_version("")}')
+        os.system(f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=win_amd64')
 
         self.status('Uploading the package to PyPI via Twine…')
         os.system(f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
@@ -89,7 +89,7 @@ class UploadCommand(Command):
 add_il = os.path.join(here, "cuvis_il")
 
 try:
-    with io.open(os.path.join(here, 'DESCRIPTION.md'), encoding='utf-8') as f:
+    with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
         long_description = '\n' + f.read()
 except FileNotFoundError:
     long_description = DESCRIPTION
