@@ -10,7 +10,7 @@ from setuptools.command import develop
 here = os.path.abspath(os.path.dirname(__file__))
 
 NAME = 'cuvis_il'
-VERSION = '0.0.11'
+VERSION = '0.0.12'
 
 DESCRIPTION = 'Compiled Python Bindings for the CUVIS SDK.'
 
@@ -89,7 +89,7 @@ class UploadCommand(Command):
 add_il = os.path.join(here, "cuvis_il")
 
 try:
-    with io.open(os.path.join(here, 'DESCRIPTION.md'), encoding='utf-8') as f:
+    with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
         long_description = '\n' + f.read()
 except FileNotFoundError:
     long_description = DESCRIPTION
