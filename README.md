@@ -31,7 +31,7 @@ project environment, run
 pip install cuvis-il
 ```
 or add `cuvis-il` to your project `requirements.txt` or `setup.py`.
-We currently provide pre-compiled binaries for Python 3.9, 3.10 and 3.11 for Windows 64-bit.
+We currently provide pre-compiled binaries for Python 3.9, 3.10, 3.11 and 3.12 for Windows 64-bit.
 
 ### Via repository
 
@@ -69,6 +69,8 @@ pip install numpy
 
 CMake will try to find the NumPy path using the `find_package(Python REQUIRED COMPONENTS Interpreter Development NumPy)`.
 To support the usage of a virtual environment, set the `Python_ROOT_DIR` variable to the directory containing your virtual environment.
+
+Our pre-compiled binaries are compiled with 1.22 (Python 3.9 and 3.10), 1.23 (Python 3.11) and 1.26 (Python 3.12).
 
 ### Getting involved
 
