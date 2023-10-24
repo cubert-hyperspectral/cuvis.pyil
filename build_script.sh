@@ -2,10 +2,13 @@
 
 numpy_version="1.22.0"
 
+# CHANGE ME
 search_path="path/to/python/installations e.g. AppData/local/programs"
 
+# CHANGE ME
 main_builds_dir="path/to/builds/dir"
 
+# CHANGE ME
 cmake="path/to/cmake"
 
 subfolders=$(find "$search_path" -maxdepth 1 -type d)
