@@ -10,13 +10,18 @@ from setuptools.command import develop
 here = os.path.abspath(os.path.dirname(__file__))
 
 NAME = 'cuvis_il'
-VERSION = '3.2.1b3'
+VERSION = '3.2.1b4'
+
+NUMPY_VERSION = '1.22.0'
 
 DESCRIPTION = 'Compiled Python Bindings for the CUVIS SDK.'
 
+if (numpy_complied := os.environ.get('CUVIS_NUMPY_COMPILED')) is not None:
+    NUMPY_VERSION = numpy_complied
+
 REQUIREMENTS = {
     'install': [
-        str(f'numpy >= 1.22.0'),
+        str(f'numpy >= {NUMPY_VERSION}'),
     ],
 }
 
