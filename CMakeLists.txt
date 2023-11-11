@@ -23,7 +23,7 @@ message("numpy version ${Python_NumPy_VERSION}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${Python_VERSION}")
 
 target_include_directories(${target_name} PUBLIC ${Python_INCLUDE_DIRS} )
-if(WIN32)
+if(WIN32 OR UNIX)
 
 target_include_directories(${target_name} PUBLIC "${Python_NumPy_INCLUDE_DIRS}" )
 endif()
