@@ -47,7 +47,7 @@ for folder in $subfolders; do
 		
 		echo -e "\t...executing cmake"
 		python_dir="$(pwd)/venv_$relative"
-		"$cmake" -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=FALSE -DPython_ROOT_DIR="$python_dir" -B "C:\dev\builds\cuvis_pyil_$relative" .
+		"$cmake" -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=FALSE -DPython_ROOT_DIR="$python_dir" -B "$main_builds_dir\cuvis_pyil_$relative" .
 		"$cmake" --build "$main_builds_dir/cuvis_pyil_$relative" --target cuvis_pyil --config Release
 		
 		echo -e "\t...packing python files"
