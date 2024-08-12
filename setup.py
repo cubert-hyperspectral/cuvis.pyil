@@ -2,14 +2,17 @@ import os
 import platform
 import sys
 import io
+import shutil
+import glob
 
+from setuptools.command.install import install
 from shutil import rmtree, copy
 from setuptools import setup, find_packages, Command 
 from setuptools.command import develop
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-NAME = 'cuvis_il'
+NAME = 'cuvis_il2'
 VERSION = '3.2.1'
 
 NUMPY_VERSION = '1.22.0'
@@ -29,14 +32,18 @@ def get_python_version(sep='.') -> str:
     return f'{sys.version_info.major}{sep}{sys.version_info.minor}'
 
 def get_pyil_files():
-    files = ['_cuvis_pyil.pyd', 'cuvis_il.py']
     with open(os.path.join(here,f'binary_dir_{platform.python_version()}.stamp')) as f:
         path = f.read().strip('\n')
-
-        for file in files:
-            full_path = os.path.join(path, file)
-            copy(full_path, os.path.join(here, 'cuvis_il'))
-    pass
+        if platform.system() == 'Windows':
+            files = ['_cuvis_pyil.pyd', 'cuvis_il.py']
+            for file in files:
+                full_path = os.path.join(path, file)
+                copy(full_path, os.path.join(here, 'cuvis_il'))
+        elif platform.system() == "Linux" and "Ubuntu" in platform.version():
+            files = ['_cuvis_pyil.so', 'cuvis_il.py']
+            for file in files:
+                full_path = os.path.join(path, file)
+                copy(full_path, os.path.join(here, 'cuvis_il'))
 
 lib_dir = ""
 if 'CUVIS' in os.environ:
@@ -62,8 +69,9 @@ class UploadCommand(Command):
         print('\033[1m{0}\033[0m'.format(s))
 
     def initialize_options(self):
-        self.username=''
-        self.password=''
+        # DEPCRECATED - Use PYPI API for authentication instead
+        self.username= '__token__'
+        self.password = ''
         pass
 
     def finalize_options(self):
@@ -73,23 +81,59 @@ class UploadCommand(Command):
         try:
             self.status('Removing previous builds…')
             rmtree(os.path.join(here, 'dist'))
+            rmtree(os.path.join(here, 'repaired_dist'))
         except OSError:
             pass
 
         self.status('Copying latest pyil files')
         get_pyil_files()
 
+        # Operating system dependent
         self.status('Building Source and Wheel (universal) distribution…')
-        os.system(f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=win_amd64')
-
-        self.status('Uploading the package to PyPI via Twine…')
-        os.system(f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
-
-        #self.status('Pushing git tags…')
-        #os.system('git tag v{0}'.format(about['__version__']))
-        #os.system('git push --tags')
-
+        if platform.system() == 'Windows':
+            os.system(f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=win_amd64')
+            self.status('Uploading the package to PyPI via Twine…')
+            os.system(f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
+        elif platform.system() == "Linux" and "Ubuntu" in platform.version():
+            os.system(f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=linux_x86_64')
+            # Fix the package to work with manylinux
+            whl_file = glob.glob('./dist/*.whl')[0]
+            self.status('Repairing build...')
+            try:
+                os.mkdir('repaired_dist')
+            except:
+                pass
+            #  This creates a build compatible with Ubuntu 20.04
+            os.system('auditwheel repair dist/* -w repaired_dist --plat manylinux_2_31_x86_64')
+            self.status('Uploading the package to PyPI via Twine…')
+            # Make sure .pypirc file is configured
+            os.system(f'twine upload -r testpypi repaired_dist/*')
         sys.exit()
+
+class PostInstallCommand(install):
+    """Custom install command to move .so file after installation."""
+
+    def run(self):
+        # Run the standard install process
+        install.run(self)
+        # On Windows, no post-install step is necessary
+        if platform.system() != "Linux":
+            return
+        ### .SO FILE
+        # Path to the .so file in the source directory
+        source_path = os.path.join(os.path.dirname(__file__), '_cuvis_pyil.so')
+        # Destination directory (where the .so file should be moved)
+        destination_dir = os.path.join(self.install_lib, 'cuvis_il2')
+        # Move the .so file
+        shutil.copy(source_path, destination_dir)
+        ### .PY FILE
+        # Path to the .so file in the source directory
+        source_path = os.path.join(os.path.dirname(__file__), 'cuvis_il.py')
+        # Destination directory (where the .so file should be moved)
+        destination_dir = os.path.join(self.install_lib, 'cuvis_il2')
+        # Move the .so file
+        shutil.copy(source_path, destination_dir)
+        print(f"Moved {source_path} to {destination_dir}")
 
 add_il = os.path.join(here, "cuvis_il")
 
@@ -117,5 +161,6 @@ setup(
     include_package_data=True,
 	cmdclass={
         'upload': UploadCommand,
+        'install': PostInstallCommand,
     },
 )
