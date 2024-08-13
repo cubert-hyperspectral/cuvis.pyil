@@ -12,8 +12,8 @@ from setuptools.command import develop
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-NAME = 'cuvis_il2'
-VERSION = '3.2.1'
+NAME = 'cuvis_il'
+VERSION = '3.2.1-1'
 
 NUMPY_VERSION = '1.22.0'
 
@@ -69,7 +69,7 @@ class UploadCommand(Command):
         print('\033[1m{0}\033[0m'.format(s))
 
     def initialize_options(self):
-        # DEPCRECATED - Use PYPI API for authentication instead
+        # DEPRECATED - Use PYPI API for authentication instead
         self.username= '__token__'
         self.password = ''
         pass
@@ -123,14 +123,14 @@ class PostInstallCommand(install):
         # Path to the .so file in the source directory
         source_path = os.path.join(os.path.dirname(__file__), '_cuvis_pyil.so')
         # Destination directory (where the .so file should be moved)
-        destination_dir = os.path.join(self.install_lib, 'cuvis_il2')
+        destination_dir = os.path.join(self.install_lib, 'cuvis_il')
         # Move the .so file
         shutil.copy(source_path, destination_dir)
         ### .PY FILE
         # Path to the .so file in the source directory
         source_path = os.path.join(os.path.dirname(__file__), 'cuvis_il.py')
         # Destination directory (where the .so file should be moved)
-        destination_dir = os.path.join(self.install_lib, 'cuvis_il2')
+        destination_dir = os.path.join(self.install_lib, 'cuvis_il')
         # Move the .so file
         shutil.copy(source_path, destination_dir)
         print(f"Moved {source_path} to {destination_dir}")
