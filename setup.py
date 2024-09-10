@@ -116,7 +116,7 @@ class UploadCommand(Command):
                 pass
 
             ubuntu_version = subprocess.check_output(
-                ['lsb_release', '-rs']).decode('ascii')
+                ['lsb_release', '-rs']).decode('ascii').strip('\n')
 
             # see https://github.com/mayeut/pep600_compliance?tab=readme-ov-file#distro-compatibility
             version_lookup = {
