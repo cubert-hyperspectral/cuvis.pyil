@@ -37,13 +37,15 @@ def get_python_version(sep='.') -> str:
 def get_pyil_files():
     with open(os.path.join(here, f'binary_dir_{platform.python_version()}.stamp')) as f:
         path = f.read().strip('\n')
-        if platform.system() == 'Windows':
-            files = ['_cuvis_pyil.pyd', 'cuvis_il.py']
-        elif platform.system() == "Linux":
-            files = ['_cuvis_pyil.so', 'cuvis_il.py']
-        else:
-            raise ValueError("Unsupported OS")
-        for file in files:
+
+        def get_platform_specifc():
+            if platform.system() == 'Windows':
+                return ['_cuvis_pyil.pyd', 'cuvis_il.py']
+            elif platform.system() == "Linux":
+                return ['_cuvis_pyil.so', 'cuvis_il.py']
+            else:
+                raise ValueError("Unsupported OS")
+        for file in get_platform_specifc():
             full_path = os.path.join(path, file)
             copy(full_path, os.path.join(here, 'cuvis_il'))
 
