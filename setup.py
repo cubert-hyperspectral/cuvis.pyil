@@ -106,7 +106,7 @@ class UploadCommand(Command):
                 f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
         elif platform.system() == "Linux":
             os.system(
-                f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=linux_x86_64')
+                f'python3 setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=linux_x86_64')
             # Fix the package to work with manylinux
             whl_file = glob.glob('./dist/*.whl')[0]
             self.status('Repairing build...')
