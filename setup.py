@@ -129,41 +129,10 @@ class UploadCommand(Command):
                 f'auditwheel repair dist/* -w repaired_dist --plat {version_lookup[ubuntu_version]}_x86_64')
             self.status('Uploading the package to PyPI via Twine…')
             # Make sure .pypirc file is configured
-            os.system(f'twine upload -r testpypi repaired_dist/*')
+            os.system(
+                f'twine upload -p {self.password} -u {self.username} -r testpypi repaired_dist/*')
         sys.exit()
 
-
-class PostInstallCommand(install):
-    """Custom install command to move .so file after installation."""
-
-    def run(self):
-        # Run the standard install process
-        install.run(self)
-        # On Windows, no post-install step is necessary
-        if platform.system() != "Linux":
-            return
-        # .SO FILE
-
-        # directory = Path(os.path.dirname(__file__))
-
-        # shutil.copy()
-        # Path to the .so file in the source directory
-        # source_path = os.path.join(os.path.dirname(__file__), '_cuvis_pyil.so')
-        # Destination directory (where the .so file should be moved)
-        # destination_dir = os.path.join(self.install_lib, 'cuvis_il')
-        # Move the .so file
-        # shutil.copy(source_path, destination_dir)
-        # .PY FILE
-        # Path to the .so file in the source directory
-        # source_path = os.path.join(os.path.dirname(__file__), 'cuvis_il.py')
-        # Destination directory (where the .so file should be moved)
-        # destination_dir = os.path.join(self.install_lib, 'cuvis_il')
-        # Move the .so file
-        # shutil.copy(source_path, destination_dir)
-        # print(f"Moved {source_path} to {destination_dir}")
-
-
-add_il = os.path.join(here, "cuvis_il")
 
 try:
     with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -188,7 +157,6 @@ setup(
     install_requires=REQUIREMENTS['install'],
     include_package_data=True,
         cmdclass={
-        'upload': UploadCommand,
-        'install': PostInstallCommand,
+        'upload': UploadCommand
     },
 )
