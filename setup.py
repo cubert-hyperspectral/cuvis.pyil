@@ -5,6 +5,7 @@ import io
 import shutil
 import glob
 import subprocess
+from pathlib import Path
 
 from setuptools.command.install import install
 from shutil import rmtree, copy
@@ -35,8 +36,8 @@ def get_python_version(sep='.') -> str:
 
 
 def get_pyil_files():
-    with open(os.path.join(here, f'binary_dir_{platform.python_version()}.stamp')) as f:
-        path = f.read().strip('\n')
+    with open(Path(here) / f'binary_dir_{platform.python_version()}.stamp') as f:
+        path = Path(f.read().strip('\n'))
 
         def get_platform_specifc():
             if platform.system() == 'Windows':
@@ -46,8 +47,8 @@ def get_pyil_files():
             else:
                 raise ValueError("Unsupported OS")
         for file in get_platform_specifc():
-            full_path = os.path.join(path, file)
-            copy(full_path, os.path.join(here, 'cuvis_il'))
+            full_path = path / file
+            copy(full_path, Path(here) / 'cuvis_il')
 
 
 lib_dir = ""
