@@ -142,20 +142,24 @@ class PostInstallCommand(install):
         if platform.system() != "Linux":
             return
         # .SO FILE
+
+        # directory = Path(os.path.dirname(__file__))
+
+        # shutil.copy()
         # Path to the .so file in the source directory
-        source_path = os.path.join(os.path.dirname(__file__), '_cuvis_pyil.so')
+        # source_path = os.path.join(os.path.dirname(__file__), '_cuvis_pyil.so')
         # Destination directory (where the .so file should be moved)
-        destination_dir = os.path.join(self.install_lib, 'cuvis_il')
+        # destination_dir = os.path.join(self.install_lib, 'cuvis_il')
         # Move the .so file
-        shutil.copy(source_path, destination_dir)
+        # shutil.copy(source_path, destination_dir)
         # .PY FILE
         # Path to the .so file in the source directory
-        source_path = os.path.join(os.path.dirname(__file__), 'cuvis_il.py')
+        # source_path = os.path.join(os.path.dirname(__file__), 'cuvis_il.py')
         # Destination directory (where the .so file should be moved)
-        destination_dir = os.path.join(self.install_lib, 'cuvis_il')
+        # destination_dir = os.path.join(self.install_lib, 'cuvis_il')
         # Move the .so file
-        shutil.copy(source_path, destination_dir)
-        print(f"Moved {source_path} to {destination_dir}")
+        # shutil.copy(source_path, destination_dir)
+        # print(f"Moved {source_path} to {destination_dir}")
 
 
 add_il = os.path.join(here, "cuvis_il")
