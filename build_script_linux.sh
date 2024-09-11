@@ -37,11 +37,11 @@ for folder in $subfolders; do
 		rm -rf "$main_builds_dir/cuvis_pyil_$relative"
 		$relative -m venv "venv_$relative"
 		source venv_$relative/Scripts/activate
-		pip3 install wheel --upgrade -qq
-		pip3 install setuptools -qq
-		pip3 install twine -qq
-		pip3 install auditwheel -qq
-		pip3 install numpy=="$numpy_version" -qq
+		$relative -m pip install wheel --upgrade -qq
+		$relative -m pip install setuptools -qq
+		$relative -m pip install twine -qq
+		$relative -m pip install auditwheel -qq
+		$relative -m pip install numpy=="$numpy_version" -qq
 		
 		echo -e "\t...executing cmake"
 		python_dir="$(pwd)/venv_$relative"
@@ -49,6 +49,6 @@ for folder in $subfolders; do
 		cmake --build "$main_builds_dir/cuvis_pyil_$relative" --target cuvis_pyil --config Release
 		
 		echo -e "\t...packing python files"
-		CUVIS_NUMPY_COMPILED=$numpy_version python3 setup.py upload --password=$password --username=$username
+		CUVIS_NUMPY_COMPILED=$numpy_version $relative setup.py upload --password=$password --username=$username
 	fi
 done
