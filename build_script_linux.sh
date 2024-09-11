@@ -36,7 +36,7 @@ for folder in $subfolders; do
 		rm -rf "venv_$relative"
 		rm -rf "$main_builds_dir/cuvis_pyil_$relative"
 		$relative -m venv "venv_$relative"
-		source venv_$relative/Scripts/activate
+		source venv_$relative/bin/activate
 		$relative -m pip install wheel --upgrade -qq
 		$relative -m pip install setuptools -qq
 		$relative -m pip install twine -qq
