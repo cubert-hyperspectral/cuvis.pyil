@@ -2,9 +2,14 @@ import os
 import platform
 import sys
 import io
+import shutil
+import glob
+import subprocess
+from pathlib import Path
 
+from setuptools.command.install import install
 from shutil import rmtree, copy
-from setuptools import setup, find_packages, Command 
+from setuptools import setup, find_packages, Command
 from setuptools.command import develop
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -25,18 +30,26 @@ REQUIREMENTS = {
     ],
 }
 
+
 def get_python_version(sep='.') -> str:
     return f'{sys.version_info.major}{sep}{sys.version_info.minor}'
 
-def get_pyil_files():
-    files = ['_cuvis_pyil.pyd', 'cuvis_il.py']
-    with open(os.path.join(here,f'binary_dir_{platform.python_version()}.stamp')) as f:
-        path = f.read().strip('\n')
 
-        for file in files:
-            full_path = os.path.join(path, file)
-            copy(full_path, os.path.join(here, 'cuvis_il'))
-    pass
+def get_pyil_files():
+    with open(Path(here) / f'binary_dir_{platform.python_version()}.stamp') as f:
+        path = Path(f.read().strip('\n'))
+
+        def get_platform_specifc():
+            if platform.system() == 'Windows':
+                return ['_cuvis_pyil.pyd', 'cuvis_il.py']
+            elif platform.system() == "Linux":
+                return ['_cuvis_pyil.so', 'cuvis_il.py']
+            else:
+                raise ValueError("Unsupported OS")
+        for file in get_platform_specifc():
+            full_path = path / file
+            copy(full_path, Path(here) / 'cuvis_il')
+
 
 lib_dir = ""
 if 'CUVIS' in os.environ:
@@ -47,13 +60,15 @@ else:
         'CUVIS SDK does not seem to exist on this machine! Make sure that the environment variable CUVIS is set.')
 
 # taken from https://github.com/navdeep-G/setup.py/blob/master/setup.py
+
+
 class UploadCommand(Command):
     """Support setup.py upload."""
 
     description = 'Build and publish the package.'
     user_options = [
-         ('username=', None, 'pip Username'),
-          ('password=', None, 'pip Password'),
+        ('username=', None, 'pip Username'),
+        ('password=', None, 'pip Password'),
     ]
 
     @staticmethod
@@ -62,8 +77,9 @@ class UploadCommand(Command):
         print('\033[1m{0}\033[0m'.format(s))
 
     def initialize_options(self):
-        self.username=''
-        self.password=''
+        # DEPRECATED - Use PYPI API for authentication instead
+        self.username = '__token__'
+        self.password = ''
         pass
 
     def finalize_options(self):
@@ -73,25 +89,50 @@ class UploadCommand(Command):
         try:
             self.status('Removing previous builds…')
             rmtree(os.path.join(here, 'dist'))
+            rmtree(os.path.join(here, 'repaired_dist'))
         except OSError:
             pass
 
         self.status('Copying latest pyil files')
         get_pyil_files()
 
+        # Operating system dependent
         self.status('Building Source and Wheel (universal) distribution…')
-        os.system(f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=win_amd64')
+        if platform.system() == 'Windows':
+            os.system(
+                f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=win_amd64')
+            self.status('Uploading the package to PyPI via Twine…')
+            os.system(
+                f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
+        elif platform.system() == "Linux":
+            os.system(
+                f'python3 setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=linux_x86_64')
+            # Fix the package to work with manylinux
+            whl_file = glob.glob('./dist/*.whl')[0]
+            self.status('Repairing build...')
+            try:
+                os.mkdir('repaired_dist')
+            except:
+                pass
 
-        self.status('Uploading the package to PyPI via Twine…')
-        os.system(f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
+            ubuntu_version = subprocess.check_output(
+                ['lsb_release', '-rs']).decode('ascii').strip('\n')
 
-        #self.status('Pushing git tags…')
-        #os.system('git tag v{0}'.format(about['__version__']))
-        #os.system('git push --tags')
+            # see https://github.com/mayeut/pep600_compliance?tab=readme-ov-file#distro-compatibility
+            version_lookup = {
+                '20.04': 'manylinux_2_31',
+                '22.04': 'manylinux_2_35'
+            }
 
+            #  This creates a build compatible with Ubuntu 20.04
+            os.system(
+                f'auditwheel repair dist/* -w repaired_dist --plat {version_lookup[ubuntu_version]}_x86_64')
+            self.status('Uploading the package to PyPI via Twine…')
+            # Make sure .pypirc file is configured
+            os.system(
+                f'twine upload -p {self.password} -u {self.username} -r testpypi repaired_dist/*')
         sys.exit()
 
-add_il = os.path.join(here, "cuvis_il")
 
 try:
     with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -112,10 +153,10 @@ setup(
     description=DESCRIPTION,
     long_description=long_description,
     long_description_content_type='text/markdown',
-    #setup_requires=REQUIREMENTS['setup'],
+    # setup_requires=REQUIREMENTS['setup'],
     install_requires=REQUIREMENTS['install'],
     include_package_data=True,
-	cmdclass={
-        'upload': UploadCommand,
+        cmdclass={
+        'upload': UploadCommand
     },
 )

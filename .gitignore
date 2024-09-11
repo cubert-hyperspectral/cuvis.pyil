@@ -5,6 +5,8 @@
 venv_Python39
 venv_Python310
 venv_Python311
+venv_Python312
+build
 /cuvis_il/*.pyd
 /cuvis_il/cuvis_il.py
 /dist
