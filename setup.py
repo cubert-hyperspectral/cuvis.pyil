@@ -15,7 +15,7 @@ from setuptools.command import develop
 here = os.path.abspath(os.path.dirname(__file__))
 
 NAME = 'cuvis_il'
-VERSION = '3.3.0rc1'
+VERSION = '3.3.0'
 
 NUMPY_VERSION = '1.22.0'
 
