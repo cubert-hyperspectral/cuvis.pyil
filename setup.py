@@ -26,7 +26,7 @@ if (numpy_complied := os.environ.get('CUVIS_NUMPY_COMPILED')) is not None:
 
 REQUIREMENTS = {
     'install': [
-        str(f'numpy >= {NUMPY_VERSION}'),
+        str(f'numpy>={NUMPY_VERSION},<2.0.0'),
     ],
 }
 
