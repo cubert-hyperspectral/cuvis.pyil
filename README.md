@@ -31,13 +31,14 @@ pip install cuvis-il
 or add `cuvis-il` to your project `requirements.txt` or `setup.py`.
 We currently provide pre-compiled binaries for Python 3.9, 3.10, 3.11 and 3.12 for Windows, Ubuntu 20.04 and Ubuntu 22.04 (all 64-bit).
 
-### Via repository
+### Build manually via repository
 
 If you wish to download and use cuvis locally, clone the git repository
 
-  ```shell
-  git clone git@github.com:cubert-hyperspectral/cuvis.pyil.git
-  ```
+```shell
+git clone git@github.com:cubert-hyperspectral/cuvis.pyil.git
+cd cuvis.pyil
+```
 and then initialize the submodules.
 
 ```
@@ -47,11 +48,30 @@ git submodule update --init --recursive
 For building the python stubs for wrapping between C libraries and python, you'll need SWIG (see https://www.swig.org/download.html).
 
 Next make sure that your preferred version of [NumPy](https://pypi.org/project/numpy/) is manually pre-installed in your go-to environment. See [here](#dependency-to-numpy).
+Also make sure that the additional build dependencies are installed.
+
+```
+python -m pip install wheel setuptools numpy==YOUR_NUMPY_VERSION -qq 
+```
 
 Then use CMake (see https://cmake.org/download/) to configure and generate your project. CMake will require you to locate the Cuvis C SDK (this should be found automatically, if the Cuvis C SDK is properly installed). 
 Also, you need to point the variable *SWIG_EXECUTABLE* to the path of the *swig.exe*.
 
+Build and install the CMake Project via
+
+```
+mkdir build
+cd build
+cmake  -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=OFF -DPython_ROOT_DIR=venv ..
+cmake --build . --target cuvis_pyil --config Release
+cp ./_cuvis_pyil.so ../cuvis_il
+cp ./cuvis_il.py ../cuvis_il
+cd ..
+python -m pip install .
+```
+
 This project will then generate the `_cuvis_pyil.pyd` and `cuvis_il.py` files needed for running the Cuvis Python SDK wrapper. 
+Those then can be used to install the cuvis_il package.
 
 :warning: **You might also use the `cuvis_il.py` directly, which provides all functionalities as single methods without organization into objects. Support for code without the additional [wrapper](https://github.com/cubert-hyperspectral/cuvis.python) is limited, though.**
 
