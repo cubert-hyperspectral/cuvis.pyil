@@ -31,7 +31,7 @@ for folder in $subfolders; do
 			numpy_version="1.23.0"
 			;;
 			Python312 | Python313)
-			numpy_version="1.26.0"
+			numpy_version="1.26.4"
 			;;
 		esac
 		
