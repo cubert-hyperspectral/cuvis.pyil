@@ -3,13 +3,13 @@
 numpy_version="1.22.0"
 
 # CHANGE ME
-search_path="path/to/python/installations e.g. AppData/local/programs"
+search_path="C:/Users/simon.birkholz/AppData/Local/Programs/Python"
 
 # CHANGE ME
-main_builds_dir="path/to/builds/dir"
+main_builds_dir="C:/dev/builds"
 
 # CHANGE ME
-cmake="path/to/cmake"
+cmake="C:/Program Files/CMake/bin/cmake.exe"
 
 subfolders=$(find "$search_path" -maxdepth 1 -type d)
 
@@ -24,14 +24,17 @@ for folder in $subfolders; do
 		echo "Building Python binaries with $relative..."
 		
 		case $relative in
-			Python39 | Python310)
+			python3.9 | python3.10)
 			numpy_version="1.22.0"
 			;;
-			Python311)
+			python3.11)
 			numpy_version="1.23.0"
 			;;
-			Python312 | Python313)
-			numpy_version="1.26.4"
+			python3.12)
+			numpy_version="1.26.0"
+			;;
+			python3.13)
+			numpy_version="2.0.0"
 			;;
 		esac
 		

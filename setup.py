@@ -26,7 +26,7 @@ if (numpy_complied := os.environ.get('CUVIS_NUMPY_COMPILED')) is not None:
 
 REQUIREMENTS = {
     'install': [
-        str(f'numpy>={NUMPY_VERSION},<2.0.0'),
+        str(f'numpy>={NUMPY_VERSION}{", < 2.0.0" if sys.version_info < (3,13) else ""}'),
     ],
 }
 
@@ -103,34 +103,24 @@ class UploadCommand(Command):
                 f'python setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=win_amd64')
             self.status('Uploading the package to PyPI via Twine…')
             os.system(
-                f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
+                f'twine upload -p {self.password} -u {self.username} dist/*')
         elif platform.system() == "Linux":
-            os.system(
-                f'python3 setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name=linux_x86_64')
-            # Fix the package to work with manylinux
-            whl_file = glob.glob('./dist/*.whl')[0]
-            self.status('Repairing build...')
-            try:
-                os.mkdir('repaired_dist')
-            except:
-                pass
-
+            # see https://github.com/mayeut/pep600_compliance?tab=readme-ov-file#distro-compatibility
             ubuntu_version = subprocess.check_output(
                 ['lsb_release', '-rs']).decode('ascii').strip('\n')
 
-            # see https://github.com/mayeut/pep600_compliance?tab=readme-ov-file#distro-compatibility
             version_lookup = {
                 '20.04': 'manylinux_2_31',
                 '22.04': 'manylinux_2_35'
             }
 
-            #  This creates a build compatible with Ubuntu 20.04
             os.system(
-                f'auditwheel repair dist/* -w repaired_dist --plat {version_lookup[ubuntu_version]}_x86_64')
+                f'python3 setup.py bdist_wheel --python-tag=py{get_python_version("")} --plat-name={version_lookup[ubuntu_version]}_x86_64')
+
             self.status('Uploading the package to PyPI via Twine…')
             # Make sure .pypirc file is configured
             os.system(
-                f'twine upload -p {self.password} -u {self.username} -r testpypi repaired_dist/*')
+                f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
         sys.exit()
 
 
