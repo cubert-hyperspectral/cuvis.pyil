@@ -3,13 +3,13 @@
 numpy_version="1.22.0"
 
 # CHANGE ME
-search_path="path/to/python/installations e.g. AppData/local/programs"
+search_path="C:/Users/simon.birkholz/AppData/Local/Programs/Python"
 
 # CHANGE ME
-main_builds_dir="path/to/builds/dir"
+main_builds_dir="C:/dev/builds"
 
 # CHANGE ME
-cmake="path/to/cmake"
+cmake="C:/Program Files/CMake/bin/cmake.exe"
 
 subfolders=$(find "$search_path" -maxdepth 1 -type d)
 
@@ -47,7 +47,7 @@ for folder in $subfolders; do
 		
 		echo -e "\t...executing cmake"
 		python_dir="$(pwd)/venv_$relative"
-		"$cmake" -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=FALSE -DPython_ROOT_DIR="$python_dir" -B "$main_builds_dir\cuvis_pyil_$relative" .
+		"$cmake" -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=FALSE -DSWIG_DIR="C:\Program Files\swigwin-4.0.2\Lib" -DSWIG_EXECUTABLE="C:\Program Files\swigwin-4.0.2\swig.exe" -DPython_ROOT_DIR="$python_dir" -B "$main_builds_dir\cuvis_pyil_$relative" .
 		"$cmake" --build "$main_builds_dir/cuvis_pyil_$relative" --target cuvis_pyil --config Release
 		
 		echo -e "\t...packing python files"
