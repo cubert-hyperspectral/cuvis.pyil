@@ -26,7 +26,7 @@ if (numpy_complied := os.environ.get('CUVIS_NUMPY_COMPILED')) is not None:
 
 REQUIREMENTS = {
     'install': [
-        str(f'numpy>={NUMPY_VERSION},<2.0.0'),
+        str(f'numpy>={NUMPY_VERSION}{", < 2.0.0" if sys.version_info < (3,13) else ""}'),
     ],
 }
 
@@ -120,7 +120,7 @@ class UploadCommand(Command):
             self.status('Uploading the package to PyPI via Twine…')
             # Make sure .pypirc file is configured
             os.system(
-                f'twine upload -p {self.password} -u {self.username} -r testpypi dist/* --verbose')
+                f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
         sys.exit()
 
 
