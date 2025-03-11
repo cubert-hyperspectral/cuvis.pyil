@@ -24,14 +24,17 @@ for folder in $subfolders; do
 		echo "Building Python binaries with $relative..."
 		
 		case $relative in
-			Python39 | Python310)
+			python3.9 | python3.10)
 			numpy_version="1.22.0"
 			;;
-			Python311)
+			python3.11)
 			numpy_version="1.23.0"
 			;;
-			Python312 | Python313)
-			numpy_version="1.26.4"
+			python3.12)
+			numpy_version="1.26.0"
+			;;
+			python3.13)
+			numpy_version="2.0.0"
 			;;
 		esac
 		

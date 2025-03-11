@@ -88,7 +88,7 @@ pip install numpy
 CMake will try to find the NumPy path using the `find_package(Python REQUIRED COMPONENTS Interpreter Development NumPy)`.
 To support the usage of a virtual environment, set the `Python_ROOT_DIR` variable to the directory containing your virtual environment.
 
-Our pre-compiled binaries are compiled with 1.22 (Python 3.9 and 3.10), 1.23 (Python 3.11) and 1.26 (Python 3.12 and 3.13).
+Our pre-compiled binaries are compiled with 1.22 (Python 3.9 and 3.10), 1.23 (Python 3.11) 1.26 (Python 3.12) and 2.0 (Python 3.13).
 
 ### Getting involved
 
