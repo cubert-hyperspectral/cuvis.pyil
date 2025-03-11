@@ -120,7 +120,7 @@ class UploadCommand(Command):
             self.status('Uploading the package to PyPI via Twine…')
             # Make sure .pypirc file is configured
             os.system(
-                f'twine upload -p {self.password} -u {self.username} -r testpypi dist/*')
+                f'twine upload -p {self.password} -u {self.username} -r testpypi dist/* --verbose')
         sys.exit()
 
 
