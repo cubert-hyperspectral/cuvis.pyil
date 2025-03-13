@@ -13,8 +13,7 @@ cmake="C:/Program Files/CMake/bin/cmake.exe"
 
 subfolders=$(find "$search_path" -maxdepth 1 -type d)
 
-read -p "pip username:" username 
-read -s -p "pip password:" password  
+read -s -p "pip token:" password  
 
 echo ""
 
@@ -40,11 +39,10 @@ for folder in $subfolders; do
 		
 		echo -e "\t...setting up python environment"
 		rm -rf "venv_$relative"
-		rm -rf "$main_builds_dir/cuvis_pyil_$relative"
+		rm -rf "$main_builds_dir/cuvis_pyil_$relative$relative"
 		$folder/python.exe -m venv "venv_$relative"
 		source venv_$relative/Scripts/activate
-		pip install wheel --upgrade -qq
-		pip install -U setuptools -qq
+		venv_$relative/Scripts/pip install --upgrade setuptools wheel build -qq
 		pip install twine -qq
 		pip install numpy=="$numpy_version" -qq
 		
@@ -52,9 +50,19 @@ for folder in $subfolders; do
 		python_dir="$(pwd)/venv_$relative"
 		"$cmake" -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=FALSE -DSWIG_DIR="C:\Program Files\swigwin-4.0.2\Lib" -DSWIG_EXECUTABLE="C:\Program Files\swigwin-4.0.2\swig.exe" -DPython_ROOT_DIR="$python_dir" -B "$main_builds_dir\cuvis_pyil_$relative" .
 		"$cmake" --build "$main_builds_dir/cuvis_pyil_$relative" --target cuvis_pyil --config Release
-		
+
+		rm -rf "cuvis_il/*cuvis*"
+		./copy_pyil_files.sh  "$main_builds_dir/cuvis_pyil_$relative/Release"
+
 		echo -e "\t...packing python files"
-		CUVIS_NUMPY_COMPILED=$numpy_version python setup.py upload --password=$password --username=$username
+		rm -rf "dist"
+		version_short="${relative//[^0-9]/}"
+		echo "Version $version_short"
+		python -m build --wheel
+		wheel_file=$(find dist -type f -name "*.whl")
+		echo "Found $wheel_file"
+		python -m wheel tags --remove --python-tag=py$version_short  --platform-tag=win_amd64 $wheel_file
+		twine upload dist/*.whl -r testpypi --password=$password --username="__token__"
 		#break
 	fi
 done
