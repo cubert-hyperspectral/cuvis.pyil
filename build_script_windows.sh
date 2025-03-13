@@ -3,7 +3,7 @@
 numpy_version="1.22.0"
 
 # CHANGE ME
-search_path="C:/Users/simon.birkholz/AppData/Local/Programs/Python"
+search_path="C:/Users/$USERNAME/AppData/Local/Programs/Python"
 
 # CHANGE ME
 main_builds_dir="C:/dev/builds"
@@ -44,13 +44,13 @@ for folder in $subfolders; do
 		$folder/python.exe -m venv "venv_$relative"
 		source venv_$relative/Scripts/activate
 		pip install wheel --upgrade -qq
-		pip install setuptools -qq
+		pip install -U setuptools -qq
 		pip install twine -qq
 		pip install numpy=="$numpy_version" -qq
 		
 		echo -e "\t...executing cmake"
 		python_dir="$(pwd)/venv_$relative"
-		"$cmake" -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=FALSE -DPython_ROOT_DIR="$python_dir" -B "$main_builds_dir\cuvis_pyil_$relative" .
+		"$cmake" -DCMAKE_BUILD_TYPE=Release -DDOXYGEN_BUILD_DOCUMENTATION=FALSE -DSWIG_DIR="C:\Program Files\swigwin-4.0.2\Lib" -DSWIG_EXECUTABLE="C:\Program Files\swigwin-4.0.2\swig.exe" -DPython_ROOT_DIR="$python_dir" -B "$main_builds_dir\cuvis_pyil_$relative" .
 		"$cmake" --build "$main_builds_dir/cuvis_pyil_$relative" --target cuvis_pyil --config Release
 		
 		echo -e "\t...packing python files"
