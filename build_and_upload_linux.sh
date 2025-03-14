@@ -35,13 +35,13 @@ $PYTHON_PATH -m venv "/tmp/venv_$relative"
 source "venv_$relative/Scripts/activate"
 
 echo -e "\t...Update pip"
-python -m ensurepip --upgrade
-python -m pip install --upgrade pip
+$PYTHON_PATH -m ensurepip --upgrade
+$PYTHON_PATH -m pip install --upgrade pip
 echo -e "\t...Updating build packages"
-pip install -U setuptools wheel build twine -qq
+$PYTHON_PATH -m pip install -U setuptools wheel build twine -qq
 
 echo -e "\t...Installing NumPy"
-pip install numpy=="$NUMPY_VERSION" -qq
+$PYTHON_PATH -m pip install numpy=="$NUMPY_VERSION" -qq
 
 echo -e "\t...Executing CMake"
 
@@ -60,11 +60,11 @@ rm -rf ./dist/*.whl
 echo -e "\t...Packing Python files"
 echo -e "\t...Version $version_short"
 
-python -m build --wheel --no-isolation
+$PYTHON_PATH -m build --wheel --no-isolation
 wheel_file=$(find dist -type f -name "*.whl")
 echo "Found $wheel_file"
 
-python -m wheel tags --remove --python-tag=py$version_short --platform-tag=$PLATFORM_TAG "$wheel_file"
+$PYTHON_PATH -m wheel tags --remove --python-tag=py$version_short --platform-tag=$PLATFORM_TAG "$wheel_file"
 
 echo -e "\t...Uploading to TestPyPI"
 twine upload dist/*.whl -r testpypi --password="$PIP_TOKEN" --username="__token__"
