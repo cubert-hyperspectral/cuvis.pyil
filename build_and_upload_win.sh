@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Usage: build_and_upload_single.sh -p <python_path> -n <numpy_version> -b <build_dir> -t <pip_token>
 
