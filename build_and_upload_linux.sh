@@ -31,7 +31,7 @@ echo -e "\t...Setting up Python environment"
 rm -rf /tmp/venv_$relative
 rm -rf $BUILD_DIR
 
-$VENV_PATH "/tmp/venv_$relative"
+$VENV_PATH="/tmp/venv_$relative"
 
 $PYTHON_PATH -m venv $VENV_PATH
 source "$VENV_PATH/bin/activate"
