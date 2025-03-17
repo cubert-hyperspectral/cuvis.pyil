@@ -61,6 +61,7 @@ python_dir="$(pwd)/venv_$relative"
 rm -rf ./cuvis_il/*cuvis*
 rm -rf ./dist/*.whl
 
+chmod +x ./copy_pyil_files.sh
 ./copy_pyil_files.sh  "$BUILD_DIR/Release"
 
 echo -e "\t...Packing Python files"
