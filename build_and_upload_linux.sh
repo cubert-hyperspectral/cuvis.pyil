@@ -31,8 +31,10 @@ echo -e "\t...Setting up Python environment"
 rm -rf /tmp/venv_$relative
 rm -rf $BUILD_DIR
 
-$PYTHON_PATH -m venv "/tmp/venv_$relative"
-source "venv_$relative/bin/activate"
+$VENV_PATH "/tmp/venv_$relative"
+
+$PYTHON_PATH -m venv $VENV_PATH
+source "$VENV_PATH/bin/activate"
 
 echo -e "\t...Update pip"
 $PYTHON_PATH -m ensurepip --upgrade
@@ -47,7 +49,7 @@ echo -e "\t...Executing CMake"
 
 cmake -DCMAKE_BUILD_TYPE=Release \
              -DDOXYGEN_BUILD_DOCUMENTATION=FALSE \
-             -DPython_ROOT_DIR="/tmp/venv_$relative" \
+             -DPython_ROOT_DIR="$VENV_PATH" \
              -B "$BUILD_DIR" .
 
 cmake --build "$BUILD_DIR" --target cuvis_pyil --config Release
