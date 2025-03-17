@@ -58,7 +58,8 @@ cmake --build "$BUILD_DIR" --target cuvis_pyil --config Release
 rm -rf ./cuvis_il/*cuvis*
 rm -rf ./dist/*.whl
 
-./copy_pyil_files.sh  "$BUILD_DIR/Release"
+chmod +x ./copy_pyil_files.sh
+./copy_pyil_files.sh  "$BUILD_DIR"
 
 echo -e "\t...Packing Python files"
 echo -e "\t...Version $version_short"
