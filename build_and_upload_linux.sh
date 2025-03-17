@@ -32,7 +32,7 @@ rm -rf /tmp/venv_$relative
 rm -rf $BUILD_DIR
 
 $PYTHON_PATH -m venv "/tmp/venv_$relative"
-source "venv_$relative/Scripts/activate"
+source "venv_$relative/bin/activate"
 
 echo -e "\t...Update pip"
 $PYTHON_PATH -m ensurepip --upgrade
