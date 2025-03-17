@@ -62,7 +62,7 @@ rm -rf ./cuvis_il/*cuvis*
 rm -rf ./dist/*.whl
 
 chmod +x ./copy_pyil_files.sh
-./copy_pyil_files.sh  "$BUILD_DIR/Release"
+./copy_pyil_files.sh  "$BUILD_DIR"
 
 echo -e "\t...Packing Python files"
 echo -e "\t...Version $version_short"
