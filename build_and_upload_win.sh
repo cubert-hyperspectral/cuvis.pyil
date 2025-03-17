@@ -62,7 +62,7 @@ rm -rf ./cuvis_il/*cuvis*
 rm -rf ./dist/*.whl
 
 chmod +x ./copy_pyil_files.sh
-./copy_pyil_files.sh  "$BUILD_DIR"
+./copy_pyil_files.sh  "$BUILD_DIR/Release"
 
 echo -e "\t...Packing Python files"
 echo -e "\t...Version $version_short"
@@ -74,4 +74,4 @@ echo "Found $wheel_file"
 python -m wheel tags --remove --python-tag=py$version_short --platform-tag=win_amd64 "$wheel_file"
 
 echo -e "\t...Uploading to TestPyPI"
-twine upload dist/*.whl --password="$PIP_TOKEN" --username="__token__"
+twine upload dist/*.whl -r testpypi --password="$PIP_TOKEN" --username="__token__"
