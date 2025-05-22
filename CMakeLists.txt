@@ -26,4 +26,6 @@ endif()
 #message(${PYTHON_LIBRARIES})
 target_link_libraries(${target_name} PRIVATE ${Python_LIBRARIES})
 
+set_property(TARGET ${target_name} PROPERTY SWIG_COMPILE_OPTIONS -doxygen)
+
 add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${SWIG_OUTPUT_DIR}/cuvis_il.py"  $<TARGET_FILE_DIR:${target_name}> )
