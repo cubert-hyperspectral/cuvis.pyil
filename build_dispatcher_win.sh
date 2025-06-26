@@ -12,10 +12,10 @@ BUILD_DIR="C:/dev/builds"
 
 # Default numpy versions based on Python versions
 declare -A NUMPY_VERSIONS=(
-    ["Python39"]="1.22.0"
-    ["Python310"]="1.22.0"
-    ["Python311"]="1.23.0"
-    ["Python312"]="1.26.0"
+    ["Python39"]="2.0.0"
+    ["Python310"]="2.0.0"
+    ["Python311"]="2.0.0"
+    ["Python312"]="2.0.0"
     ["Python313"]="2.0.0"
 )
 
