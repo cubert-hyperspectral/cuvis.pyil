@@ -78,7 +78,8 @@ Those then can be used to install the cuvis_il package.
 #### Dependency to NumPy
 
 The python interface layer is dependent on [NumPy](https://pypi.org/project/numpy/). Specifically, this means that we need the C headers of the NumPy library.
-Notice that NumPy has [backwards compatibility](https://numpy.org/doc/stable/dev/depending_on_numpy.html).
+Notice that NumPy has [forward compatibility](https://numpy.org/doc/stable/dev/depending_on_numpy.html) for minor versions.
+As of version 1.25 NumPy also offers its ABI in a backwards compatible way.
 To compile the python interface layer install your preferred version of NumPy. For example the newest stable release via
 
 ```
@@ -88,7 +89,8 @@ pip install numpy
 CMake will try to find the NumPy path using the `find_package(Python REQUIRED COMPONENTS Interpreter Development NumPy)`.
 To support the usage of a virtual environment, set the `Python_ROOT_DIR` variable to the directory containing your virtual environment.
 
-Our pre-compiled binaries are compiled with 1.22 (Python 3.9 and 3.10), 1.23 (Python 3.11) 1.26 (Python 3.12) and 2.0 (Python 3.13).
+Our pre-compiled binaries are compiled with 2.0.0 (Python 3.9, 3.10, 3.11, 3.12 and 3.13).
+This should ensure that the bindings are build in a forward and backwards compatible way.
 
 ### Getting involved
 
