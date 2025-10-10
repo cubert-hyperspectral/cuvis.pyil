@@ -17,6 +17,7 @@ declare -A NUMPY_VERSIONS=(
     ["Python311"]="2.0.0"
     ["Python312"]="2.0.0"
     ["Python313"]="2.0.0"
+	["Python314"]="2.0.0"
 )
 
 read -s -p "Enter pip token:" PIP_TOKEN  
@@ -27,21 +28,26 @@ echo "Build directory: $BUILD_DIR"
 echo "Using CMake: $CMAKE_PATH"
 
 # Find all subdirectories in search path
-subfolders=$(find "$SEARCH_PATH" -maxdepth 1 -type d)
+declare -A rel2abs
+rel_names=()
+for folder in $(find "$SEARCH_PATH" -maxdepth 1 -type d 2>/dev/null); do
+  rel=$(realpath --relative-to="$SEARCH_PATH" "$folder")
+  [[ "$rel" == "." ]] && continue
+  rel_names+=("$rel")
+  rel2abs["$rel"]="$folder"
+done
 
-for folder in $subfolders; do
-    relative=$(realpath --relative-to="$SEARCH_PATH" "$folder")
+# fancy multi-select
+mapfile -t chosen < <(printf '%s\n' "${rel_names[@]}" | fzf -m --prompt="Select Pythons > " \
+  --header="Tab to select multiple, Enter to confirm")
+
+for relative in "${chosen[@]}"; do
     
-    if [[ "$relative" != "." ]]; then
-        echo "Processing Python version: $relative"
+    echo "Processing Python version: $relative"
 
-        # Determine the correct NumPy version
-        numpy_version="${NUMPY_VERSIONS[$relative]:-1.22.0}"  # Default if not listed
+    folder="${rel2abs[$relative]}"
+    numpy_version="${NUMPY_VERSIONS[$relative]:-1.22.0}"
+    build_subdir="$BUILD_DIR/cuvis_pyil_$relative"
 
-        # Define build output directory
-        build_subdir="$BUILD_DIR/cuvis_pyil_$relative"
-
-        # Call the inner script
-        ./build_and_upload_win.sh -p "$folder" -n "$numpy_version" -b "$build_subdir" -t "$PIP_TOKEN"
-    fi
+    ./build_and_upload_win.sh -p "$folder" -n "$numpy_version" -b "$build_subdir" -t "$PIP_TOKEN"
 done
