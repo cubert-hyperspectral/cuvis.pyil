@@ -74,4 +74,4 @@ echo "Found $wheel_file"
 python -m wheel tags --remove --python-tag=py$version_short --platform-tag=win_amd64 "$wheel_file"
 
 echo -e "\t...Uploading to TestPyPI"
-twine upload dist/*.whl -r testpypi --password="$PIP_TOKEN" --username="__token__"
+twine upload dist/*.whl --password="$PIP_TOKEN" --username="__token__"
