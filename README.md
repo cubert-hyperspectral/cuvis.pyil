@@ -29,7 +29,7 @@ project environment, run
 pip install cuvis-il
 ```
 or add `cuvis-il` to your project `requirements.txt` or `setup.py`.
-We currently provide pre-compiled binaries for Python 3.9, 3.10, 3.11, 3.12 and 3.13 for Windows, Ubuntu 20.04 and Ubuntu 22.04 (all 64-bit).
+We currently provide pre-compiled binaries for Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14 for Windows, Ubuntu 22.04 and Ubuntu 24.04 (all 64-bit).
 
 ### Build manually via repository
 

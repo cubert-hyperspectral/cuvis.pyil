@@ -16,8 +16,8 @@ declare -A NUMPY_VERSIONS=(
     ["Python310"]="2.0.0"
     ["Python311"]="2.0.0"
     ["Python312"]="2.0.0"
-    ["Python313"]="2.0.0"
-	["Python314"]="2.0.0"
+    ["Python313"]="2.1.0"
+	["Python314"]="2.1.0"
 )
 
 read -s -p "Enter pip token:" PIP_TOKEN  
