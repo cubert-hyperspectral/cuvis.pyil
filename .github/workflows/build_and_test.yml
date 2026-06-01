@@ -3,14 +3,12 @@ name: Build & Test cuvis.pyil
 on:
   pull_request:
 
-env:
-  CUVIS_VERSION: "3.5.3"
-
 jobs:
   build-and-test:
     strategy:
       fail-fast: false
       matrix:
+        cuvis_version: ["3.5.3"]
         include:
           # ── Ubuntu 22.04 ──
           - ubuntu: "22.04"
@@ -54,7 +52,7 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-      image: cubertgmbh/cuvis_base:${{ env.CUVIS_VERSION }}-ubuntu${{ matrix.ubuntu }}
+      image: cubertgmbh/cuvis_base:${{ matrix.cuvis_version }}-ubuntu${{ matrix.ubuntu }}
     steps:
       - name: Install system build dependencies
         run: |
