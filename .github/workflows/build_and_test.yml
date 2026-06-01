@@ -4,11 +4,19 @@ on:
   pull_request:
 
 jobs:
+
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      cuvis_version: "3.5.3"   # single place to update
+    steps:
+      - run: echo "cuvis_version=3.5.3" >> "$GITHUB_OUTPUT"
+
   build-and-test:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
-        cuvis_version: ["3.5.3"]
         include:
           # ── Ubuntu 22.04 ──
           - ubuntu: "22.04"
@@ -52,7 +60,7 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-      image: cubertgmbh/cuvis_base:${{ matrix.cuvis_version }}-ubuntu${{ matrix.ubuntu }}
+      image: cubertgmbh/cuvis_base:${{ needs.prepare.outputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}
     steps:
       - name: Install system build dependencies
         run: |
