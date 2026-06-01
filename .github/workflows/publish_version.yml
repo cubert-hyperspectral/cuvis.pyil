@@ -98,7 +98,7 @@ jobs:
             platform_tag: "manylinux_2_39_x86_64"
           - ubuntu: "24.04"
             python: "3.14"
-            numpy: "2.1.0"
+            numpy: "2.3.0"
             platform_tag: "manylinux_2_39_x86_64"
 
     runs-on: ubuntu-latest
