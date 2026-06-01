@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cuvis_il"
-version = "3.5.3"
+version = "3.5.3.0"
 description = "Compiled Python Bindings for the CUVIS SDK."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -19,7 +19,7 @@ dependencies = [
     "numpy>=1.23.5; python_version>='3.11' and python_version<'3.12'",
     "numpy>=1.26.0; python_version>='3.12' and python_version<'3.13'",
     "numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'",
-    "numpy>=2.3.0; python_version>='3.14'",
+    "numpy>=2.3.2; python_version>='3.14'",
 ]
 
 classifiers = [
