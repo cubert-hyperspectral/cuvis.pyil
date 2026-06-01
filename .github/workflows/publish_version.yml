@@ -1,0 +1,316 @@
+name: Build & Publish cuvis.pyil
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "Target index"
+        type: choice
+        options: [pypi, testpypi]
+        default: testpypi
+      ref:
+        description: "Git ref to build (branch/tag/SHA). Leave empty to use the UI-selected ref."
+        required: false
+        default: ""
+      cuvis_version:
+        description: "Cuvis SDK version in the base image tag"
+        required: false
+        default: "3.5.3"
+
+concurrency:
+  group: pypi-publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Ubuntu 20.04 ──
+          # - ubuntu: "20.04"
+          #   python: "3.9"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_31_x86_64"
+          # - ubuntu: "20.04"
+          #   python: "3.10"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_31_x86_64"
+          # - ubuntu: "20.04"
+          #   python: "3.11"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_31_x86_64"
+          # - ubuntu: "20.04"
+          #   python: "3.12"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_31_x86_64"
+          # - ubuntu: "20.04"
+          #   python: "3.13"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_31_x86_64"
+ 
+          # # ── Ubuntu 22.04 ──
+          # - ubuntu: "22.04"
+          #   python: "3.9"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_35_x86_64"
+          # - ubuntu: "22.04"
+          #   python: "3.10"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_35_x86_64"
+          # - ubuntu: "22.04"
+          #   python: "3.11"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_35_x86_64"
+          # - ubuntu: "22.04"
+          #   python: "3.12"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_35_x86_64"
+          # - ubuntu: "22.04"
+          #   python: "3.13"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_35_x86_64"
+          # - ubuntu: "22.04"
+          #   python: "3.14"
+          #   numpy: "2.0.0"
+          #   platform_tag: "manylinux_2_35_x86_64"
+ 
+          # ── Ubuntu 24.04 ──
+          - ubuntu: "24.04"
+            python: "3.9"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+          - ubuntu: "24.04"
+            python: "3.10"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+          - ubuntu: "24.04"
+            python: "3.11"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+          - ubuntu: "24.04"
+            python: "3.12"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+          - ubuntu: "24.04"
+            python: "3.13"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+          - ubuntu: "24.04"
+            python: "3.14"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+
+    runs-on: ubuntu-latest
+    container:
+      image: cubertgmbh/cuvis_base:${{ inputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}
+ 
+    permissions:
+      contents: read
+ 
+    steps:
+      - name: Install system build dependencies
+        run: |
+          apt-get update
+          apt-get install -y software-properties-common gnupg g++ swig cmake
+ 
+      - name: Add Deadsnakes PPA and install Python ${{ matrix.python }}
+        run: |
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y python${{ matrix.python }}-dev python${{ matrix.python }}-venv
+ 
+      - name: Enforce admin-only trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const username = context.actor;
+ 
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner, repo, username
+            });
+ 
+            core.info(`Actor permission: ${data.permission}`);
+            if (data.permission !== "admin") {
+              core.setFailed(`Only repository admins may publish. (${username} has: ${data.permission})`);
+            }
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+  
+      - name: Set up Python virtual environment
+        run: |
+          python${{ matrix.python }} -m venv /tmp/venv
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+ 
+      - name: Install Python build dependencies
+        run: |
+          pip install --upgrade pip setuptools wheel build
+          pip install numpy==${{ matrix.numpy }}
+ 
+      - name: Read package name/version from pyproject.toml
+        id: meta
+        run: |
+          python3 - <<'PY'
+          import sys, json
+          try:
+            import tomllib
+          except ModuleNotFoundError:
+            import tomli as tomllib
+          from pathlib import Path
+ 
+          data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          proj = data.get("project", {})
+          name = proj.get("name")
+          version = proj.get("version")
+          if not name or not version:
+            print("Missing [project].name or [project].version in pyproject.toml", file=sys.stderr)
+            sys.exit(2)
+ 
+          print(f"name={name}")
+          print(f"version={version}")
+          with open("pkg_meta.json", "w", encoding="utf-8") as f:
+            json.dump({"name": name, "version": version}, f)
+          PY
+          echo "name=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['name'])")" >> "$GITHUB_OUTPUT"
+          echo "version=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['version'])")" >> "$GITHUB_OUTPUT"
+ 
+      - name: CMake configure and build
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DDOXYGEN_BUILD_DOCUMENTATION=FALSE \
+                -DPython_ROOT_DIR=/tmp/venv \
+                -B build .
+          cmake --build build --target cuvis_pyil --config Release
+ 
+      - name: Copy built files and package wheel
+        run: |
+          rm -rf ./cuvis_il/*cuvis*
+          rm -rf ./dist/*.whl
+ 
+          chmod +x ./copy_pyil_files.sh
+          ./copy_pyil_files.sh build
+ 
+          python -m build --wheel --no-isolation
+ 
+      - name: Tag wheel with correct Python and platform tags
+        run: |
+          PYTHON_TAG="py$(echo '${{ matrix.python }}' | tr -d '.')"
+          WHEEL=$(find dist -type f -name "*.whl")
+          echo "Tagging $WHEEL with --python-tag=$PYTHON_TAG --platform-tag=${{ matrix.platform_tag }}"
+          python -m wheel tags --remove \
+            --python-tag="$PYTHON_TAG" \
+            --platform-tag=${{ matrix.platform_tag }} \
+            "$WHEEL"
+ 
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-ubuntu${{ matrix.ubuntu }}-py${{ matrix.python }}
+          path: dist/*.whl
+
+  preflight:
+      needs: build
+      runs-on: ubuntu-latest
+      container:
+        image: cubertgmbh/cuvis_base:${{ inputs.cuvis_version }}-ubuntu24.04
+  
+      permissions:
+        contents: read
+  
+      steps:
+        - name: Checkout (for pyproject.toml)
+          uses: actions/checkout@v5
+          with:
+            ref: ${{ inputs.ref || github.ref }}
+  
+        - name: Read package name/version
+          id: meta
+          run: |
+            apt-get update && apt-get install -y python3
+            python3 - <<'PY'
+            import sys, json
+            try:
+              import tomllib
+            except ModuleNotFoundError:
+              import tomli as tomllib
+            from pathlib import Path
+  
+            data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+            proj = data.get("project", {})
+            name = proj.get("name")
+            version = proj.get("version")
+            if not name or not version:
+              print("Missing [project].name or [project].version", file=sys.stderr)
+              sys.exit(2)
+  
+            with open("pkg_meta.json", "w", encoding="utf-8") as f:
+              json.dump({"name": name, "version": version}, f)
+            PY
+            echo "name=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['name'])")" >> "$GITHUB_OUTPUT"
+            echo "version=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['version'])")" >> "$GITHUB_OUTPUT"
+  
+        - name: Abort if version already exists on target index
+          env:
+            NAME: ${{ steps.meta.outputs.name }}
+            VERSION: ${{ steps.meta.outputs.version }}
+            TARGET: ${{ inputs.repository }}
+          run: |
+            python3 - <<'PY'
+            import json, os, sys, urllib.request, urllib.error
+  
+            name = os.environ["NAME"]
+            version = os.environ["VERSION"]
+            target = os.environ["TARGET"]
+  
+            base = "https://pypi.org/pypi" if target == "pypi" else "https://test.pypi.org/pypi"
+            url = f"{base}/{name}/json"
+  
+            try:
+              with urllib.request.urlopen(url) as resp:
+                data = json.load(resp)
+            except urllib.error.HTTPError as e:
+              if e.code == 404:
+                print(f"{name} not found on {target}; OK to publish {version}.")
+                sys.exit(0)
+              raise
+  
+            releases = data.get("releases", {})
+            if version in releases and releases[version]:
+              print(f"Version {name}=={version} already exists on {target}. Aborting.")
+              sys.exit(1)
+  
+            print(f"Version {name}=={version} not present on {target}; OK to publish.")
+            PY
+ 
+  # ── Publish (trusted publishing via OIDC) ──
+  publish:
+    needs: [build, preflight]
+    runs-on: ubuntu-latest
+ 
+    environment: ${{ inputs.repository }}
+ 
+    permissions:
+      contents: read
+      id-token: write
+ 
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          pattern: wheel-*
+          merge-multiple: true
+ 
+      - name: List wheels to publish
+        run: ls -lh dist/
+ 
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          packages-dir: dist/
+          repository-url: ${{ inputs.repository == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
