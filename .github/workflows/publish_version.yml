@@ -181,7 +181,6 @@ jobs:
         - name: Read package name/version
           id: meta
           run: |
-            apt-get update && apt-get install -y python3
             python3 - <<'PY'
             import os, sys
             try:
@@ -189,7 +188,8 @@ jobs:
             except ModuleNotFoundError:
               import tomli as tomllib
 
-            data = tomllib.loads(open("pyproject.toml", "rb").read())
+            with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
             proj = data["project"]
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"name={proj['name']}\n")
@@ -199,7 +199,7 @@ jobs:
           env:
             NAME: ${{ steps.meta.outputs.name }}
             VERSION: ${{ steps.meta.outputs.version }}
-            TARGET: ${{ inputs.repository }}
+            TARGET: ${{ inputs.repository || 'pypi' }}
           run: |
             python3 - <<'PY'
             import json, os, sys, urllib.request, urllib.error
@@ -233,7 +233,7 @@ jobs:
     needs: [prepare, build, preflight]
     runs-on: ubuntu-latest
  
-    environment: ${{ inputs.repository }}
+    environment: ${{ inputs.repository || 'pypi' }}
  
     permissions:
       contents: read
