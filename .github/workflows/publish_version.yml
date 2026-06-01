@@ -34,6 +34,7 @@ jobs:
           echo "cuvis_version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
   build:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
