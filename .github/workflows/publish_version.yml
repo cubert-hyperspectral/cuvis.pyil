@@ -34,6 +34,7 @@ jobs:
           echo "cuvis_version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
   build:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -125,33 +126,6 @@ jobs:
           pip install --upgrade pip setuptools wheel build
           pip install numpy==${{ matrix.numpy }}
  
-      - name: Read package name/version from pyproject.toml
-        id: meta
-        run: |
-          python3 - <<'PY'
-          import sys, json
-          try:
-            import tomllib
-          except ModuleNotFoundError:
-            import tomli as tomllib
-          from pathlib import Path
- 
-          data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-          proj = data.get("project", {})
-          name = proj.get("name")
-          version = proj.get("version")
-          if not name or not version:
-            print("Missing [project].name or [project].version in pyproject.toml", file=sys.stderr)
-            sys.exit(2)
- 
-          print(f"name={name}")
-          print(f"version={version}")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            json.dump({"name": name, "version": version}, f)
-          PY
-          echo "name=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['name'])")" >> "$GITHUB_OUTPUT"
-          echo "version=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['version'])")" >> "$GITHUB_OUTPUT"
- 
       - name: CMake configure and build
         run: |
           cmake -DCMAKE_BUILD_TYPE=Release \
@@ -207,34 +181,25 @@ jobs:
         - name: Read package name/version
           id: meta
           run: |
-            apt-get update && apt-get install -y python3
             python3 - <<'PY'
-            import sys, json
+            import os, sys
             try:
               import tomllib
             except ModuleNotFoundError:
               import tomli as tomllib
-            from pathlib import Path
-  
-            data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-            proj = data.get("project", {})
-            name = proj.get("name")
-            version = proj.get("version")
-            if not name or not version:
-              print("Missing [project].name or [project].version", file=sys.stderr)
-              sys.exit(2)
-  
+
+            with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+            proj = data["project"]
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              json.dump({"name": name, "version": version}, f)
+              f.write(f"name={proj['name']}\n")
+              f.write(f"version={proj['version']}\n")
             PY
-            echo "name=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['name'])")" >> "$GITHUB_OUTPUT"
-            echo "version=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['version'])")" >> "$GITHUB_OUTPUT"
-  
         - name: Abort if version already exists on target index
           env:
             NAME: ${{ steps.meta.outputs.name }}
             VERSION: ${{ steps.meta.outputs.version }}
-            TARGET: ${{ inputs.repository }}
+            TARGET: ${{ inputs.repository || 'pypi' }}
           run: |
             python3 - <<'PY'
             import json, os, sys, urllib.request, urllib.error
@@ -268,7 +233,7 @@ jobs:
     needs: [prepare, build, preflight]
     runs-on: ubuntu-latest
  
-    environment: ${{ inputs.repository }}
+    environment: ${{ inputs.repository || 'pypi' }}
  
     permissions:
       contents: read
