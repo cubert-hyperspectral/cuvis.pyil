@@ -1,6 +1,8 @@
 name: Build & Publish cuvis.pyil
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       repository:
@@ -9,71 +11,58 @@ on:
         options: [pypi, testpypi]
         default: testpypi
       ref:
-        description: "Git ref to build (branch/tag/SHA). Leave empty to use the UI-selected ref."
+        description: "Git ref to build (branch/tag/SHA)"
         required: false
         default: ""
-      cuvis_version:
-        description: "Cuvis SDK version in the base image tag"
-        required: false
-        default: "3.5.3"
 
 concurrency:
   group: pypi-publish
   cancel-in-progress: false
 
 jobs:
+
+  prepare:
+    runs-on: ubuntu-latest
+    environment: release-gate
+    outputs:
+      cuvis_version: ${{ steps.tag.outputs.cuvis_version }}
+    steps:
+      - name: Parse SDK version
+        id: tag
+        run: |
+          TAG="${{ inputs.ref || github.ref_name }}"
+          echo "cuvis_version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
   build:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # ── Ubuntu 20.04 ──
-          # - ubuntu: "20.04"
-          #   python: "3.9"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_31_x86_64"
-          # - ubuntu: "20.04"
-          #   python: "3.10"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_31_x86_64"
-          # - ubuntu: "20.04"
-          #   python: "3.11"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_31_x86_64"
-          # - ubuntu: "20.04"
-          #   python: "3.12"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_31_x86_64"
-          # - ubuntu: "20.04"
-          #   python: "3.13"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_31_x86_64"
- 
-          # # ── Ubuntu 22.04 ──
-          # - ubuntu: "22.04"
-          #   python: "3.9"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_35_x86_64"
-          # - ubuntu: "22.04"
-          #   python: "3.10"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_35_x86_64"
-          # - ubuntu: "22.04"
-          #   python: "3.11"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_35_x86_64"
-          # - ubuntu: "22.04"
-          #   python: "3.12"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_35_x86_64"
-          # - ubuntu: "22.04"
-          #   python: "3.13"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_35_x86_64"
-          # - ubuntu: "22.04"
-          #   python: "3.14"
-          #   numpy: "2.0.0"
-          #   platform_tag: "manylinux_2_35_x86_64"
+        include: 
+          # ── Ubuntu 22.04 ──
+          - ubuntu: "22.04"
+            python: "3.9"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_35_x86_64"
+          - ubuntu: "22.04"
+            python: "3.10"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_35_x86_64"
+          - ubuntu: "22.04"
+            python: "3.11"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_35_x86_64"
+          - ubuntu: "22.04"
+            python: "3.12"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_35_x86_64"
+          - ubuntu: "22.04"
+            python: "3.13"
+            numpy: "2.1.0"
+            platform_tag: "manylinux_2_35_x86_64"
+          - ubuntu: "22.04"
+            python: "3.14"
+            numpy: "2.3.0"
+            platform_tag: "manylinux_2_35_x86_64"
  
           # ── Ubuntu 24.04 ──
           - ubuntu: "24.04"
@@ -103,8 +92,8 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-      image: cubertgmbh/cuvis_base:${{ inputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}
- 
+      image: cubertgmbh/cuvis_base:${{ needs.prepare.outputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}
+
     permissions:
       contents: read
  
@@ -120,23 +109,6 @@ jobs:
           apt-get update
           apt-get install -y python${{ matrix.python }}-dev python${{ matrix.python }}-venv
  
-      - name: Enforce admin-only trigger
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const username = context.actor;
- 
-            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
-              owner, repo, username
-            });
- 
-            core.info(`Actor permission: ${data.permission}`);
-            if (data.permission !== "admin") {
-              core.setFailed(`Only repository admins may publish. (${username} has: ${data.permission})`);
-            }
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -174,7 +146,7 @@ jobs:
  
           print(f"name={name}")
           print(f"version={version}")
-          with open("pkg_meta.json", "w", encoding="utf-8") as f:
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             json.dump({"name": name, "version": version}, f)
           PY
           echo "name=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['name'])")" >> "$GITHUB_OUTPUT"
@@ -201,12 +173,17 @@ jobs:
       - name: Tag wheel with correct Python and platform tags
         run: |
           PYTHON_TAG="py$(echo '${{ matrix.python }}' | tr -d '.')"
-          WHEEL=$(find dist -type f -name "*.whl")
-          echo "Tagging $WHEEL with --python-tag=$PYTHON_TAG --platform-tag=${{ matrix.platform_tag }}"
+          WHEELS=$(find dist -type f -name "*.whl")
+          WHEEL_COUNT=$(echo "$WHEELS" | wc -l)
+          if [ "$WHEEL_COUNT" -ne 1 ]; then
+            echo "Expected exactly 1 wheel, found $WHEEL_COUNT"
+            exit 1
+          fi
+          echo "Tagging $WHEELS with --python-tag=$PYTHON_TAG --platform-tag=${{ matrix.platform_tag }}"
           python -m wheel tags --remove \
             --python-tag="$PYTHON_TAG" \
             --platform-tag=${{ matrix.platform_tag }} \
-            "$WHEEL"
+            "$WHEELS"
  
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -215,17 +192,15 @@ jobs:
           path: dist/*.whl
 
   preflight:
-      needs: build
+      needs: [prepare, build]
       runs-on: ubuntu-latest
-      container:
-        image: cubertgmbh/cuvis_base:${{ inputs.cuvis_version }}-ubuntu24.04
-  
+
       permissions:
         contents: read
   
       steps:
         - name: Checkout (for pyproject.toml)
-          uses: actions/checkout@v5
+          uses: actions/checkout@v4
           with:
             ref: ${{ inputs.ref || github.ref }}
   
@@ -249,7 +224,7 @@ jobs:
               print("Missing [project].name or [project].version", file=sys.stderr)
               sys.exit(2)
   
-            with open("pkg_meta.json", "w", encoding="utf-8") as f:
+            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               json.dump({"name": name, "version": version}, f)
             PY
             echo "name=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['name'])")" >> "$GITHUB_OUTPUT"
@@ -290,7 +265,7 @@ jobs:
  
   # ── Publish (trusted publishing via OIDC) ──
   publish:
-    needs: [build, preflight]
+    needs: [prepare, build, preflight]
     runs-on: ubuntu-latest
  
     environment: ${{ inputs.repository }}
@@ -314,4 +289,11 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           packages-dir: dist/
-          repository-url: ${{ inputs.repository == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
+          repository-url: >-
+            ${{
+              github.event_name == 'release'
+              && 'https://upload.pypi.org/legacy/'
+              || (inputs.repository == 'pypi'
+                  && 'https://upload.pypi.org/legacy/'
+                  || 'https://test.pypi.org/legacy/')
+            }}
