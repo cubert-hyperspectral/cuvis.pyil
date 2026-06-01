@@ -126,33 +126,6 @@ jobs:
           pip install --upgrade pip setuptools wheel build
           pip install numpy==${{ matrix.numpy }}
  
-      - name: Read package name/version from pyproject.toml
-        id: meta
-        run: |
-          python3 - <<'PY'
-          import sys, json, os
-          try:
-            import tomllib
-          except ModuleNotFoundError:
-            import tomli as tomllib
-          from pathlib import Path
- 
-          data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-          proj = data.get("project", {})
-          name = proj.get("name")
-          version = proj.get("version")
-          if not name or not version:
-            print("Missing [project].name or [project].version in pyproject.toml", file=sys.stderr)
-            sys.exit(2)
- 
-          print(f"name={name}")
-          print(f"version={version}")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            json.dump({"name": name, "version": version}, f)
-          PY
-          echo "name=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['name'])")" >> "$GITHUB_OUTPUT"
-          echo "version=$(python3 -c "import json; print(json.load(open('pkg_meta.json'))['version'])")" >> "$GITHUB_OUTPUT"
- 
       - name: CMake configure and build
         run: |
           cmake -DCMAKE_BUILD_TYPE=Release \
