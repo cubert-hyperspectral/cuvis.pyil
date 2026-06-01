@@ -1,0 +1,112 @@
+name: Build & Test cuvis.pyil
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CUVIS_VERSION: "3.5.3"
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Ubuntu 22.04 ──
+          - ubuntu: "22.04"
+            python: "3.9"
+            numpy: "2.0.0"
+          - ubuntu: "22.04"
+            python: "3.10"
+            numpy: "2.0.0"
+          - ubuntu: "22.04"
+            python: "3.11"
+            numpy: "2.0.0"
+          - ubuntu: "22.04"
+            python: "3.12"
+            numpy: "2.0.0"
+          - ubuntu: "22.04"
+            python: "3.13"
+            numpy: "2.1.0"
+          - ubuntu: "22.04"
+            python: "3.14"
+            numpy: "2.3.0"
+
+          # ── Ubuntu 24.04 ──
+          - ubuntu: "24.04"
+            python: "3.9"
+            numpy: "2.0.0"
+          - ubuntu: "24.04"
+            python: "3.10"
+            numpy: "2.0.0"
+          - ubuntu: "24.04"
+            python: "3.11"
+            numpy: "2.0.0"
+          - ubuntu: "24.04"
+            python: "3.12"
+            numpy: "2.0.0"
+          - ubuntu: "24.04"
+            python: "3.13"
+            numpy: "2.1.0"
+          - ubuntu: "24.04"
+            python: "3.14"
+            numpy: "2.3.0"
+
+    runs-on: ubuntu-latest
+container:
+      image: cubertgmbh/cuvis_base:${{ env.CUVIS_VERSION }}-ubuntu${{ matrix.ubuntu }}
+    steps:
+      - name: Install system build dependencies
+        run: |
+          apt-get update
+          apt-get install -y software-properties-common gnupg g++ swig cmake
+
+      - name: Add Deadsnakes PPA and install Python ${{ matrix.python }}
+        run: |
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y python${{ matrix.python }}-dev python${{ matrix.python }}-venv
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python virtual environment
+        run: |
+          python${{ matrix.python }} -m venv /tmp/venv
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install Python build dependencies
+        run: |
+          pip install --upgrade pip setuptools wheel build
+          pip install numpy==${{ matrix.numpy }}
+
+      - name: CMake configure and build
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DDOXYGEN_BUILD_DOCUMENTATION=FALSE \
+                -DPython_ROOT_DIR=/tmp/venv \
+                -B build .
+          cmake --build build --target cuvis_pyil --config Release
+
+      - name: Copy built files and install package
+        run: |
+          chmod +x ./copy_pyil_files.sh
+          ./copy_pyil_files.sh build
+
+          # Ubuntu 22.04 needs upgraded packaging tools
+          if grep -q 'VERSION_ID="22.04"' /etc/os-release; then
+            pip install --upgrade pip setuptools wheel build packaging
+          fi
+
+          pip install .
+
+      - name: Smoke test - verify import and version
+        run: |
+          OUTPUT=$(python -c "from cuvis_il import cuvis_il; print(cuvis_il.cuvis_version_swig())")
+          echo "Version output: $OUTPUT"
+          echo "$OUTPUT" | grep -q "CUBERT SDK" || (echo "Version check failed!" && exit 1)
