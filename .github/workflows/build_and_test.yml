@@ -53,7 +53,7 @@ jobs:
             numpy: "2.3.0"
 
     runs-on: ubuntu-latest
-container:
+    container:
       image: cubertgmbh/cuvis_base:${{ env.CUVIS_VERSION }}-ubuntu${{ matrix.ubuntu }}
     steps:
       - name: Install system build dependencies
