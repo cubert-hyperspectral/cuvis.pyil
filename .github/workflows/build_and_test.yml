@@ -8,7 +8,7 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      cuvis_version: "3.5.3"   # single place to update
+      cuvis_version: "3.5.3"
     steps:
       - run: echo "cuvis_version=3.5.3" >> "$GITHUB_OUTPUT"
 
