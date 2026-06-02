@@ -38,94 +38,174 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: 
-          # ── Ubuntu 22.04 ──
+        include:
+          # ── Ubuntu 22.04 x86_64 ──
           - ubuntu: "22.04"
             python: "3.9"
             numpy: "2.0.0"
             platform_tag: "manylinux_2_35_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
           - ubuntu: "22.04"
             python: "3.10"
             numpy: "2.0.0"
             platform_tag: "manylinux_2_35_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
           - ubuntu: "22.04"
             python: "3.11"
             numpy: "2.0.0"
             platform_tag: "manylinux_2_35_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
           - ubuntu: "22.04"
             python: "3.12"
             numpy: "2.0.0"
             platform_tag: "manylinux_2_35_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
           - ubuntu: "22.04"
             python: "3.13"
             numpy: "2.1.0"
             platform_tag: "manylinux_2_35_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
           - ubuntu: "22.04"
             python: "3.14"
             numpy: "2.3.2"
             platform_tag: "manylinux_2_35_x86_64"
- 
-          # ── Ubuntu 24.04 ──
-          - ubuntu: "24.04"
-            python: "3.9"
-            numpy: "2.0.0"
-            platform_tag: "manylinux_2_39_x86_64"
-          - ubuntu: "24.04"
-            python: "3.10"
-            numpy: "2.0.0"
-            platform_tag: "manylinux_2_39_x86_64"
-          - ubuntu: "24.04"
-            python: "3.11"
-            numpy: "2.0.0"
-            platform_tag: "manylinux_2_39_x86_64"
-          - ubuntu: "24.04"
-            python: "3.12"
-            numpy: "2.0.0"
-            platform_tag: "manylinux_2_39_x86_64"
-          - ubuntu: "24.04"
-            python: "3.13"
-            numpy: "2.1.0"
-            platform_tag: "manylinux_2_39_x86_64"
-          - ubuntu: "24.04"
-            python: "3.14"
-            numpy: "2.3.2"
-            platform_tag: "manylinux_2_39_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
 
-    runs-on: ubuntu-latest
+          # ── Ubuntu 24.04 x86_64 ──
+          - ubuntu: "24.04"
+            python: "3.9"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
+          - ubuntu: "24.04"
+            python: "3.10"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
+          - ubuntu: "24.04"
+            python: "3.11"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
+          - ubuntu: "24.04"
+            python: "3.12"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
+          - ubuntu: "24.04"
+            python: "3.13"
+            numpy: "2.1.0"
+            platform_tag: "manylinux_2_39_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
+          - ubuntu: "24.04"
+            python: "3.14"
+            numpy: "2.3.2"
+            platform_tag: "manylinux_2_39_x86_64"
+            runner: "ubuntu-latest"
+            tag_suffix: ""
+            arch: "amd64"
+
+          # ── Ubuntu 24.04 ARM64 ──
+          - ubuntu: "24.04"
+            python: "3.9"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_aarch64"
+            runner: "ubuntu-24.04-arm"
+            tag_suffix: "-arm64"
+            arch: "arm64"
+          - ubuntu: "24.04"
+            python: "3.10"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_aarch64"
+            runner: "ubuntu-24.04-arm"
+            tag_suffix: "-arm64"
+            arch: "arm64"
+          - ubuntu: "24.04"
+            python: "3.11"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_aarch64"
+            runner: "ubuntu-24.04-arm"
+            tag_suffix: "-arm64"
+            arch: "arm64"
+          - ubuntu: "24.04"
+            python: "3.12"
+            numpy: "2.0.0"
+            platform_tag: "manylinux_2_39_aarch64"
+            runner: "ubuntu-24.04-arm"
+            tag_suffix: "-arm64"
+            arch: "arm64"
+          - ubuntu: "24.04"
+            python: "3.13"
+            numpy: "2.1.0"
+            platform_tag: "manylinux_2_39_aarch64"
+            runner: "ubuntu-24.04-arm"
+            tag_suffix: "-arm64"
+            arch: "arm64"
+          - ubuntu: "24.04"
+            python: "3.14"
+            numpy: "2.3.2"
+            platform_tag: "manylinux_2_39_aarch64"
+            runner: "ubuntu-24.04-arm"
+            tag_suffix: "-arm64"
+            arch: "arm64"
+
+    runs-on: ${{ matrix.runner }}
     container:
-      image: cubertgmbh/cuvis_base:${{ needs.prepare.outputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}
+      image: cubertgmbh/cuvis_base:${{ needs.prepare.outputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}${{ matrix.tag_suffix }}
 
     permissions:
       contents: read
- 
+
     steps:
       - name: Install system build dependencies
         run: |
           apt-get update
           apt-get install -y software-properties-common gnupg g++ swig cmake
- 
+
       - name: Add Deadsnakes PPA and install Python ${{ matrix.python }}
         run: |
           add-apt-repository -y ppa:deadsnakes/ppa
           apt-get update
           apt-get install -y python${{ matrix.python }}-dev python${{ matrix.python }}-venv
- 
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
           submodules: recursive
-  
+
       - name: Set up Python virtual environment
         run: |
           python${{ matrix.python }} -m venv /tmp/venv
           echo "/tmp/venv/bin" >> "$GITHUB_PATH"
- 
+
       - name: Install Python build dependencies
         run: |
           pip install --upgrade pip setuptools wheel build
           pip install numpy==${{ matrix.numpy }}
- 
+
       - name: CMake configure and build
         run: |
           cmake -DCMAKE_BUILD_TYPE=Release \
@@ -133,17 +213,17 @@ jobs:
                 -DPython_ROOT_DIR=/tmp/venv \
                 -B build .
           cmake --build build --target cuvis_pyil --config Release
- 
+
       - name: Copy built files and package wheel
         run: |
           rm -rf ./cuvis_il/*cuvis*
           rm -rf ./dist/*.whl
- 
+
           chmod +x ./copy_pyil_files.sh
           ./copy_pyil_files.sh build
- 
+
           python -m build --wheel --no-isolation
- 
+
       - name: Tag wheel with correct Python and platform tags
         run: |
           PYTHON_TAG="py$(echo '${{ matrix.python }}' | tr -d '.')"
@@ -158,11 +238,11 @@ jobs:
             --python-tag="$PYTHON_TAG" \
             --platform-tag=${{ matrix.platform_tag }} \
             "$WHEELS"
- 
+
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-ubuntu${{ matrix.ubuntu }}-py${{ matrix.python }}
+          name: wheel-ubuntu${{ matrix.ubuntu }}-py${{ matrix.python }}-${{ matrix.arch }}
           path: dist/*.whl
 
   preflight:
@@ -171,13 +251,13 @@ jobs:
 
       permissions:
         contents: read
-  
+
       steps:
         - name: Checkout (for pyproject.toml)
           uses: actions/checkout@v4
           with:
             ref: ${{ inputs.ref || github.ref }}
-  
+
         - name: Read package name/version
           id: meta
           run: |
@@ -203,14 +283,14 @@ jobs:
           run: |
             python3 - <<'PY'
             import json, os, sys, urllib.request, urllib.error
-  
+
             name = os.environ["NAME"]
             version = os.environ["VERSION"]
             target = os.environ["TARGET"]
-  
+
             base = "https://pypi.org/pypi" if target == "pypi" else "https://test.pypi.org/pypi"
             url = f"{base}/{name}/json"
-  
+
             try:
               with urllib.request.urlopen(url) as resp:
                 data = json.load(resp)
@@ -219,26 +299,26 @@ jobs:
                 print(f"{name} not found on {target}; OK to publish {version}.")
                 sys.exit(0)
               raise
-  
+
             releases = data.get("releases", {})
             if version in releases and releases[version]:
               print(f"Version {name}=={version} already exists on {target}. Aborting.")
               sys.exit(1)
-  
+
             print(f"Version {name}=={version} not present on {target}; OK to publish.")
             PY
- 
+
   # ── Publish (trusted publishing via OIDC) ──
   publish:
     needs: [prepare, build, preflight]
     runs-on: ubuntu-latest
- 
+
     environment: ${{ inputs.repository || 'pypi' }}
- 
+
     permissions:
       contents: read
       id-token: write
- 
+
     steps:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
@@ -246,10 +326,10 @@ jobs:
           path: dist/
           pattern: wheel-*
           merge-multiple: true
- 
+
       - name: List wheels to publish
         run: ls -lh dist/
- 
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
