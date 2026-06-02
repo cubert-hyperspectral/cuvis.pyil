@@ -14,6 +14,10 @@ on:
         description: "Git ref to build (branch/tag/SHA)"
         required: false
         default: ""
+      cuvis_version:
+        description: "CUVIS SDK version for Docker base image (e.g. 3.5.3) — required when ref is a branch, not a version tag"
+        required: false
+        default: ""
 
 concurrency:
   group: pypi-publish
@@ -31,7 +35,11 @@ jobs:
         id: tag
         run: |
           TAG="${{ inputs.ref || github.ref_name }}"
-          echo "cuvis_version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          CUVIS_VERSION="${{ inputs.cuvis_version }}"
+          if [ -z "$CUVIS_VERSION" ]; then
+            CUVIS_VERSION="${TAG#v}"
+          fi
+          echo "cuvis_version=$CUVIS_VERSION" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
