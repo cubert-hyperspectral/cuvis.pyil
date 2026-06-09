@@ -145,20 +145,6 @@ jobs:
     needs: prepare
     runs-on: windows-latest
     steps:
-      - name: Cache SWIG 4.2.1
-        id: cache-swig
-        uses: actions/cache@v4
-        with:
-          path: C:\swigwin-4.2.1
-          key: swigwin-4.2.1
-
-      - name: Install SWIG 4.2.1
-        if: steps.cache-swig.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          Invoke-WebRequest "https://github.com/swig/swig/releases/download/v4.2.1/swigwin-4.2.1.zip" -OutFile swigwin.zip
-          Expand-Archive swigwin.zip -DestinationPath C:\
-
       - name: Cache CUVIS SDK
         id: cache-cuvis
         uses: actions/cache@v4
@@ -201,21 +187,20 @@ jobs:
       contents: read
 
     steps:
-      - name: Restore SWIG cache
-        uses: actions/cache@v4
-        with:
-          path: C:\swigwin-4.2.1
-          key: swigwin-4.2.1
+      - name: Install SWIG 4.2.1
+        shell: pwsh
+        run: |
+          winget install --id SWIG.SWIG --version 4.2.1 --silent --accept-package-agreements --accept-source-agreements
+          $swigPkg = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Directory | Where-Object { $_.Name -like "SWIG.SWIG_*" } | Select-Object -First 1
+          $swigExe = Get-ChildItem $swigPkg.FullName -Recurse -Filter "swig.exe" | Select-Object -First 1
+          echo "SWIG_EXECUTABLE=$($swigExe.FullName)" >> $env:GITHUB_ENV
+          echo "SWIG_DIR=$(Join-Path $swigExe.DirectoryName 'Lib')" >> $env:GITHUB_ENV
 
       - name: Restore CUVIS SDK cache
         uses: actions/cache@v4
         with:
           path: C:\Program Files\Cuvis
           key: cuvis-sdk-windows-${{ needs.prepare.outputs.cuvis_version }}
-
-      - name: Add SWIG to PATH
-        shell: pwsh
-        run: echo "C:\swigwin-4.2.1" >> $env:GITHUB_PATH
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -239,12 +224,7 @@ jobs:
       - name: CMake configure and build
         shell: pwsh
         run: |
-          cmake -DCMAKE_BUILD_TYPE=Release `
-                -DDOXYGEN_BUILD_DOCUMENTATION=FALSE `
-                -DSWIG_DIR="C:\swigwin-4.2.1\Lib" `
-                -DSWIG_EXECUTABLE="C:\swigwin-4.2.1\swig.exe" `
-                -DPython_ROOT_DIR="${{ github.workspace }}\venv" `
-                -B build .
+          cmake "-DCMAKE_BUILD_TYPE=Release" "-DDOXYGEN_BUILD_DOCUMENTATION=FALSE" "-DSWIG_DIR=$env:SWIG_DIR" "-DSWIG_EXECUTABLE=$env:SWIG_EXECUTABLE" "-DPython_ROOT_DIR=${{ github.workspace }}\venv" -B build .
           cmake --build build --target cuvis_pyil --config Release
 
       - name: Copy built files and package wheel
