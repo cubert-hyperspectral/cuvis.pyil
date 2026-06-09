@@ -104,9 +104,7 @@ jobs:
         if: steps.cache-swig.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          Invoke-WebRequest `
-            "https://downloads.sourceforge.net/project/swig/swigwin/swigwin-4.2.1/swigwin-4.2.1.zip" `
-            -OutFile swigwin.zip
+          Invoke-WebRequest "https://github.com/swig/swig/releases/download/v4.2.1/swigwin-4.2.1.zip" -OutFile swigwin.zip
           Expand-Archive swigwin.zip -DestinationPath C:\
 
       - name: Cache CUVIS SDK
@@ -124,8 +122,7 @@ jobs:
         run: |
           $v = $env:CUVIS_VERSION
           $vn = $v -replace '\.', ''
-          Invoke-WebRequest "https://cloud.cubert-gmbh.de/s/cuvis_sdk_release_ver_$vn/download" `
-            -OutFile cuvis_sdk.zip
+          Invoke-WebRequest "https://cloud.cubert-gmbh.de/s/cuvis_sdk_release_ver_$vn/download" -OutFile cuvis_sdk.zip
           Expand-Archive cuvis_sdk.zip -DestinationPath cuvis_sdk
           $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "*.exe" |
                        Where-Object { $_.DirectoryName -match 'Windows' } |
