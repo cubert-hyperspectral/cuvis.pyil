@@ -162,11 +162,9 @@ jobs:
           $vn = $v -replace '\.', ''
           Invoke-WebRequest "https://cloud.cubert-gmbh.de/s/cuvis_sdk_release_ver_$vn/download" -OutFile cuvis_sdk.zip
           Expand-Archive cuvis_sdk.zip -DestinationPath cuvis_sdk
-          $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "*.exe" |
-                       Where-Object { $_.DirectoryName -match 'Windows' } |
-                       Select-Object -First 1
+          $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\Windows\" -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
           Write-Output "Installing: $($installer.FullName)"
-          Start-Process -Wait -FilePath $installer.FullName -ArgumentList '/S'
+          Start-Process $installer.FullName -ArgumentList '/S', '/LOG=install.log', '/NORESTART' -Wait
 
   build-windows:
     needs: [prepare, setup-windows-deps]
