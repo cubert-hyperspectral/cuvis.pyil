@@ -88,3 +88,101 @@ jobs:
           OUTPUT=$(python -c "from cuvis_il import cuvis_il; print(cuvis_il.cuvis_version_swig())")
           echo "Version output: $OUTPUT"
           echo "$OUTPUT" | grep -q "CUBERT SDK" || (echo "Version check failed!" && exit 1)
+
+  setup-windows-deps:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Cache CUVIS SDK
+        id: cache-cuvis
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\Cuvis
+          key: cuvis-sdk-windows-${{ needs.prepare.outputs.cuvis_version }}
+
+      - name: Download and install CUVIS SDK
+        if: steps.cache-cuvis.outputs.cache-hit != 'true'
+        shell: pwsh
+        env:
+          CUVIS_VERSION: ${{ needs.prepare.outputs.cuvis_version }}
+        run: |
+          $v = $env:CUVIS_VERSION
+          $vn = $v -replace '\.', ''
+          Invoke-WebRequest "https://cloud.cubert-gmbh.de/s/cuvis_sdk_release_ver_$vn/download" -OutFile cuvis_sdk.zip
+          Expand-Archive cuvis_sdk.zip -DestinationPath cuvis_sdk
+          $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
+          Write-Output "Installing: $($installer.FullName)"
+          Start-Process $installer.FullName -ArgumentList '/S', '/LOG=install.log', '/NORESTART' -Wait
+
+  build-and-test-windows:
+    needs: [prepare, setup-windows-deps]
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - { python: "3.9",  numpy: "2.0.0" }
+          - { python: "3.10", numpy: "2.0.0" }
+          - { python: "3.11", numpy: "2.0.0" }
+          - { python: "3.12", numpy: "2.0.0" }
+          - { python: "3.13", numpy: "2.1.0" }
+          - { python: "3.14", numpy: "2.3.2" }
+    runs-on: windows-latest
+
+    steps:
+      - name: Install SWIG 4.2.1
+        shell: pwsh
+        run: |
+          winget install --id SWIG.SWIG --version 4.2.1 --silent --accept-package-agreements --accept-source-agreements
+          $swigPkg = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Directory | Where-Object { $_.Name -like "SWIG.SWIG_*" } | Select-Object -First 1
+          $swigExe = Get-ChildItem $swigPkg.FullName -Recurse -Filter "swig.exe" | Select-Object -First 1
+          echo "SWIG_EXECUTABLE=$($swigExe.FullName)" >> $env:GITHUB_ENV
+          echo "SWIG_DIR=$(Join-Path $swigExe.DirectoryName 'Lib')" >> $env:GITHUB_ENV
+
+      - name: Restore CUVIS SDK cache
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\Cuvis
+          key: cuvis-sdk-windows-${{ needs.prepare.outputs.cuvis_version }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Create venv and install Python build dependencies
+        shell: pwsh
+        run: |
+          python -m venv venv
+          .\venv\Scripts\Activate.ps1
+          pip install --upgrade pip setuptools wheel build
+          pip install numpy==${{ matrix.numpy }}
+
+      - name: CMake configure and build
+        shell: pwsh
+        run: |
+          cmake "-DCMAKE_BUILD_TYPE=Release" "-DDOXYGEN_BUILD_DOCUMENTATION=FALSE" "-DSWIG_DIR=$env:SWIG_DIR" "-DSWIG_EXECUTABLE=$env:SWIG_EXECUTABLE" "-DPython_ROOT_DIR=${{ github.workspace }}\venv" -B build .
+          cmake --build build --target cuvis_pyil --config Release
+
+      - name: Copy built files and install package
+        shell: bash
+        run: |
+          chmod +x ./copy_pyil_files.sh
+          ./copy_pyil_files.sh build/Release
+          source venv/Scripts/activate
+          pip install .
+
+      - name: Smoke test - verify import and version
+        env:
+          CUVIS: C:\Program Files\Cuvis\bin
+        shell: bash
+        run: |
+          source venv/Scripts/activate
+          OUTPUT=$(python -c "from cuvis_il import cuvis_il; print(cuvis_il.cuvis_version_swig())")
+          echo "Version output: $OUTPUT"
+          echo "$OUTPUT" | grep -q "CUBERT SDK" || (echo "Version check failed!" && exit 1)
