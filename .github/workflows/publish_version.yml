@@ -141,8 +141,150 @@ jobs:
           name: wheel-ubuntu${{ matrix.ubuntu }}-py${{ matrix.python }}-${{ matrix.arch }}
           path: dist/*.whl
 
+  setup-windows-deps:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Cache SWIG 4.2.1
+        id: cache-swig
+        uses: actions/cache@v4
+        with:
+          path: C:\swigwin-4.2.1
+          key: swigwin-4.2.1
+
+      - name: Install SWIG 4.2.1
+        if: steps.cache-swig.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            "https://downloads.sourceforge.net/project/swig/swigwin/swigwin-4.2.1/swigwin-4.2.1.zip" `
+            -OutFile swigwin.zip
+          Expand-Archive swigwin.zip -DestinationPath C:\
+
+      - name: Cache CUVIS SDK
+        id: cache-cuvis
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\Cuvis
+          key: cuvis-sdk-windows-${{ needs.prepare.outputs.cuvis_version }}
+
+      - name: Download and install CUVIS SDK
+        if: steps.cache-cuvis.outputs.cache-hit != 'true'
+        shell: pwsh
+        env:
+          CUVIS_VERSION: ${{ needs.prepare.outputs.cuvis_version }}
+        run: |
+          $v = $env:CUVIS_VERSION
+          $vn = $v -replace '\.', ''
+          Invoke-WebRequest "https://cloud.cubert-gmbh.de/s/cuvis_sdk_release_ver_$vn/download" `
+            -OutFile cuvis_sdk.zip
+          Expand-Archive cuvis_sdk.zip -DestinationPath cuvis_sdk
+          $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "*.exe" |
+                       Where-Object { $_.DirectoryName -match 'Windows' } |
+                       Select-Object -First 1
+          Write-Output "Installing: $($installer.FullName)"
+          Start-Process -Wait -FilePath $installer.FullName -ArgumentList '/S'
+
+  build-windows:
+    needs: [prepare, setup-windows-deps]
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - { python: "3.9",  numpy: "2.0.0" }
+          - { python: "3.10", numpy: "2.0.0" }
+          - { python: "3.11", numpy: "2.0.0" }
+          - { python: "3.12", numpy: "2.0.0" }
+          - { python: "3.13", numpy: "2.1.0" }
+          - { python: "3.14", numpy: "2.3.2" }
+    runs-on: windows-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Restore SWIG cache
+        uses: actions/cache@v4
+        with:
+          path: C:\swigwin-4.2.1
+          key: swigwin-4.2.1
+
+      - name: Restore CUVIS SDK cache
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\Cuvis
+          key: cuvis-sdk-windows-${{ needs.prepare.outputs.cuvis_version }}
+
+      - name: Add SWIG to PATH
+        shell: pwsh
+        run: echo "C:\swigwin-4.2.1" >> $env:GITHUB_PATH
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          submodules: recursive
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Create venv and install Python build dependencies
+        shell: pwsh
+        run: |
+          python -m venv venv
+          .\venv\Scripts\Activate.ps1
+          pip install --upgrade pip setuptools wheel build
+          pip install numpy==${{ matrix.numpy }}
+
+      - name: CMake configure and build
+        shell: pwsh
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=Release `
+                -DDOXYGEN_BUILD_DOCUMENTATION=FALSE `
+                -DSWIG_DIR="C:\swigwin-4.2.1\Lib" `
+                -DSWIG_EXECUTABLE="C:\swigwin-4.2.1\swig.exe" `
+                -DPython_ROOT_DIR="${{ github.workspace }}\venv" `
+                -B build .
+          cmake --build build --target cuvis_pyil --config Release
+
+      - name: Copy built files and package wheel
+        shell: bash
+        run: |
+          rm -rf ./cuvis_il/*cuvis*
+          rm -rf ./dist/*.whl
+          chmod +x ./copy_pyil_files.sh
+          ./copy_pyil_files.sh build/Release
+          source venv/Scripts/activate
+          python -m build --wheel --no-isolation
+
+      - name: Tag wheel with correct Python and platform tags
+        shell: bash
+        run: |
+          source venv/Scripts/activate
+          PYTHON_TAG="py$(echo '${{ matrix.python }}' | tr -d '.')"
+          WHEELS=$(find dist -type f -name "*.whl")
+          WHEEL_COUNT=$(echo "$WHEELS" | wc -l)
+          if [ "$WHEEL_COUNT" -ne 1 ]; then
+            echo "Expected exactly 1 wheel, found $WHEEL_COUNT"
+            exit 1
+          fi
+          echo "Tagging $WHEELS with --python-tag=$PYTHON_TAG --platform-tag=win_amd64"
+          python -m wheel tags --remove \
+            --python-tag="$PYTHON_TAG" \
+            --platform-tag=win_amd64 \
+            "$WHEELS"
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-windows-py${{ matrix.python }}
+          path: dist/*.whl
+
   preflight:
-      needs: [prepare, build]
+      needs: [prepare, build, build-windows]
       runs-on: ubuntu-latest
 
       permissions:
