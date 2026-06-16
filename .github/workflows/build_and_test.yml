@@ -112,7 +112,42 @@ jobs:
           Expand-Archive cuvis_sdk.zip -DestinationPath cuvis_sdk
           $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
           Write-Output "Installing: $($installer.FullName)"
-          Start-Process $installer.FullName -ArgumentList '/S', '/LOG=install.log', '/NORESTART' -Wait
+
+          $logDir = Join-Path $env:RUNNER_TEMP 'cuvis_install'
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          $nsisLog = Join-Path $logDir 'install.log'
+
+          # -PassThru + poll loop instead of -Wait: the installer has hung indefinitely on a
+          # headless runner (nested sub-installer / NSIS MessageBox waiting for input that /S
+          # does not suppress). Bound the wait and log what is blocking so it fails fast.
+          $proc = Start-Process $installer.FullName -ArgumentList '/S', "/LOG=$nsisLog", '/NORESTART' -PassThru
+          $timeoutSec = 600; $elapsed = 0
+          while (-not $proc.HasExited -and $elapsed -lt $timeoutSec) {
+              Start-Sleep -Seconds 20; $elapsed += 20
+              Write-Output "== t=${elapsed}s : installer still running =="
+              Get-Process | Where-Object { $_.MainWindowTitle } |
+                  Select-Object Id, ProcessName, MainWindowTitle | Format-Table -Auto | Out-String | Write-Output
+              Get-CimInstance Win32_Process |
+                  Where-Object { $_.Name -match 'setup|install|msiexec|ebus|vc_redist|cuda|nvidia' } |
+                  Select-Object ProcessId, ParentProcessId, Name, CommandLine | Format-Table -Auto | Out-String | Write-Output
+          }
+
+          if (-not $proc.HasExited) {
+              Write-Output "::error::Installer did not finish within $timeoutSec s"
+              if (Test-Path $nsisLog) { Write-Output '----- NSIS install.log -----'; Get-Content $nsisLog }
+              Get-ChildItem $env:TEMP -Recurse -Filter '*.log' -ErrorAction SilentlyContinue |
+                  Select-Object -First 20 | ForEach-Object {
+                      Write-Output "----- $($_.FullName) -----"; Get-Content $_.FullName -ErrorAction SilentlyContinue }
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              exit 1
+          }
+
+          Write-Output "Installer exit code: $($proc.ExitCode)"
+          if ($proc.ExitCode -ne 0) { if (Test-Path $nsisLog) { Get-Content $nsisLog }; exit 1 }
+
+          # Verify before the cache post-step runs, so a partial install can't poison the cache:
+          if (-not (Test-Path 'C:\Program Files\Cuvis\bin')) { Write-Output "::error::C:\Program Files\Cuvis\bin missing"; exit 1 }
+          Write-Output "CUVIS SDK installed:"; Get-ChildItem 'C:\Program Files\Cuvis\bin' | Select-Object -First 20 | Format-Table -Auto | Out-String | Write-Output
 
   build-and-test-windows:
     needs: [prepare, setup-windows-deps]
