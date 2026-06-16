@@ -164,7 +164,45 @@ jobs:
           Expand-Archive cuvis_sdk.zip -DestinationPath cuvis_sdk
           $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
           Write-Output "Installing: $($installer.FullName)"
-          Start-Process $installer.FullName -ArgumentList '/S', '/LOG=install.log', '/NORESTART' -Wait
+
+          $logDir = Join-Path $env:RUNNER_TEMP 'cuvis_install'
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          $nsisLog = Join-Path $logDir 'install.log'
+          $cuvisBin = 'C:\Program Files\Cuvis\bin'
+
+          # The installer silently runs the bundled Allied Vision VimbaX GigE-driver sub-installer.
+          # On a headless runner that sub-install leaves an orphan msiexec holding the pipe handle,
+          # so the NSIS ExecWait never returns and the installer process hangs forever -- even though
+          # the SDK files DO land on disk. So we wait for the installed files to appear (not for the
+          # process to exit), then terminate the stuck installer and continue.
+          $proc = Start-Process $installer.FullName -ArgumentList '/S', "/LOG=$nsisLog", '/NORESTART' -PassThru
+          $timeoutSec = 600; $elapsed = 0; $installed = $false
+          while ($elapsed -lt $timeoutSec) {
+              if (Test-Path "$cuvisBin\*.dll") { $installed = $true; break }
+              if ($proc.HasExited) { break }
+              Start-Sleep -Seconds 15; $elapsed += 15
+              Write-Output "== t=${elapsed}s : waiting for SDK files (binExists=$(Test-Path $cuvisBin)) =="
+              Get-CimInstance Win32_Process |
+                  Where-Object { $_.Name -match 'setup|install|msiexec|vimba|ebus|vc_redist|cuda|nvidia' } |
+                  Select-Object ProcessId, ParentProcessId, Name | Format-Table -Auto | Out-String | Write-Output
+          }
+
+          if (-not $installed) { Start-Sleep -Seconds 5; $installed = [bool](Test-Path "$cuvisBin\*.dll") }
+
+          if (-not $proc.HasExited) {
+              Write-Output "Installer process still running (known VimbaX/msiexec ExecWait hang) - terminating it."
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          } else {
+              Write-Output "Installer exit code: $($proc.ExitCode)"
+          }
+
+          # Verify before the cache post-step runs, so a partial install can't poison the cache:
+          if (-not $installed) {
+              Write-Output "::error::CUVIS SDK files did not appear under $cuvisBin within $timeoutSec s"
+              if (Test-Path $nsisLog) { Write-Output '----- NSIS install.log -----'; Get-Content $nsisLog }
+              exit 1
+          }
+          Write-Output "CUVIS SDK installed:"; Get-ChildItem $cuvisBin | Select-Object -First 20 | Format-Table -Auto | Out-String | Write-Output
 
   build-windows:
     needs: [prepare, setup-windows-deps]
