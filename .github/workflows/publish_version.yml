@@ -271,8 +271,10 @@ jobs:
 
       - name: CMake configure and build
         shell: pwsh
+        env:
+          CUVIS: C:\Program Files\Cuvis
         run: |
-          cmake "-DCMAKE_BUILD_TYPE=Release" "-DDOXYGEN_BUILD_DOCUMENTATION=FALSE" "-DSWIG_DIR=$env:SWIG_DIR" "-DSWIG_EXECUTABLE=$env:SWIG_EXECUTABLE" "-DPython_ROOT_DIR=${{ github.workspace }}\venv" -B build .
+          cmake "-DCMAKE_BUILD_TYPE=Release" "-DDOXYGEN_BUILD_DOCUMENTATION=FALSE" "-DSWIG_DIR=$env:SWIG_DIR" "-DSWIG_EXECUTABLE=$env:SWIG_EXECUTABLE" "-DPython_ROOT_DIR=${{ github.workspace }}\venv" "-DCMAKE_PREFIX_PATH=$env:CUVIS" -B build .
           cmake --build build --target cuvis_pyil --config Release
 
       - name: Copy built files and package wheel
