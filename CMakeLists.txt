@@ -30,7 +30,7 @@ set_property(TARGET ${target_name} PROPERTY SWIG_COMPILE_OPTIONS -doxygen)
 
 # The version of the cuvis library this binding is compiled against, reported at
 # import time so a mismatch with the deployed library is visible rather than silent.
-target_compile_definitions(${target_name} PRIVATE CUVIS_PYIL_BUILT_VERSION="${Cuvis_VERSION}")
+target_compile_definitions(${target_name} PRIVATE CUVIS_BINDING_BUILT_VERSION="${Cuvis_VERSION}")
 
 if(MSVC)
   # Delay-load cuvis.dll so a symbol missing from the deployed library no longer

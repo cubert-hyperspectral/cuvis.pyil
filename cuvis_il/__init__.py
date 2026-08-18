@@ -242,7 +242,7 @@ def _stub(symbol, attribute):
             "cuvis: '{}' is not exported by the cuvis library loaded from {}. "
             "The installed CUVIS SDK is older than the one this binding was built "
             "against ({}).".format(symbol, _cuvis_library_path,
-                                   getattr(cuvis_il, "built_against_version", "unknown")))
+                                   _built_against_version()))
     raise_unavailable.__name__ = attribute
     raise_unavailable.__qualname__ = attribute
     return raise_unavailable
@@ -289,7 +289,21 @@ def _reconcile_with_library():
             RuntimeWarning, stacklevel=2)
 
 
+def _built_against_version():
+    """The cuvis version this binding was compiled against, or "" if unavailable.
+
+    The extension exposes it as an ordinary wrapped function so every target language
+    can reach it, not just Python.
+    """
+    try:
+        return cuvis_il.cuvis_built_against_version()
+    except Exception:
+        return ""
+
+
 def _record_library_version():
+    cuvis_il.built_against_version = _built_against_version()
+    cuvis_il.library_path = _cuvis_library_path
     try:
         cuvis_il.library_version = cuvis_il.cuvis_version_swig()
     except Exception:
