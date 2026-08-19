@@ -18,6 +18,7 @@ Nothing here contains a list of function names; the needed set comes from the bi
 import ctypes
 import os
 import platform
+import re
 import struct
 import sys
 import warnings
@@ -239,10 +240,11 @@ def _needed_symbols():
 def _stub(symbol, attribute):
     def raise_unavailable(*_args, **_kwargs):
         raise RuntimeError(
-            "cuvis: '{}' is not exported by the cuvis library loaded from {}. "
-            "The installed CUVIS SDK is older than the one this binding was built "
-            "against ({}).".format(symbol, _cuvis_library_path,
-                                   _built_against_version()))
+            "cuvis: '{}' is not exported by the cuvis library loaded from {}. That "
+            "library is not the one this binding was built against (built against: {}; "
+            "loaded: {}).".format(symbol, _cuvis_library_path,
+                                  _built_against_version() or "unknown",
+                                  _library_version() or "unknown"))
     raise_unavailable.__name__ = attribute
     raise_unavailable.__qualname__ = attribute
     return raise_unavailable
@@ -290,10 +292,11 @@ def _reconcile_with_library():
 
 
 def _built_against_version():
-    """The cuvis version this binding was compiled against, or "" if unavailable.
+    """The cuvis library this binding was compiled against, or "" if unavailable.
 
-    The extension exposes it as an ordinary wrapped function so every target language
-    can reach it, not just Python.
+    Reported in the same form as the loaded library reports itself, so the two can be
+    compared directly. The extension exposes it as an ordinary wrapped function so every
+    target language can reach it, not just Python.
     """
     try:
         return cuvis_il.cuvis_built_against_version()
@@ -301,13 +304,28 @@ def _built_against_version():
         return ""
 
 
+def _library_version():
+    try:
+        return cuvis_il.cuvis_version_swig()
+    except Exception:
+        return ""
+
+
+def _hash_from_version(version):
+    """The build hash out of a 'CUBERT SDK v. X.Y.Z build: <hash>' string, or ""."""
+    found = re.search(r"build:\s*([0-9a-fA-F]+)", version or "")
+    return found.group(1) if found else ""
+
+
 def _record_library_version():
     cuvis_il.built_against_version = _built_against_version()
     cuvis_il.library_path = _cuvis_library_path
-    try:
-        cuvis_il.library_version = cuvis_il.cuvis_version_swig()
-    except Exception:
-        cuvis_il.library_version = ""
+    cuvis_il.library_version = _library_version()
+    # Both sides are reported in the same form, so the hash that tells two builds of one
+    # version apart is parsed the same way out of each. A difference is not a failure,
+    # only a fact worth having when something else is wrong, hence no warning.
+    cuvis_il.built_against_hash = _hash_from_version(cuvis_il.built_against_version)
+    cuvis_il.library_hash = _hash_from_version(cuvis_il.library_version)
 
 
 _reconcile_with_library()

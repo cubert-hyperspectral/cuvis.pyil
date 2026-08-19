@@ -103,6 +103,10 @@ jobs:
           assert not unguarded, unguarded
           print('needs', len(needed), 'cuvis functions; missing:', c.missing_symbols)
           print('built against:', c.built_against_version, '| loaded:', c.library_version)
+          # Both sides come from the same banner, so a build that lost the define shows up
+          # here rather than as a silent 'unknown' in someone's bug report.
+          assert c.built_against_hash and c.library_hash, (c.built_against_version, c.library_version)
+          assert c.built_against_hash == c.library_hash, 'CI builds and runs the same SDK'
           "
           SO=$(python -c "from cuvis_il import _cuvis_pyil; print(_cuvis_pyil.__file__)")
           if readelf -d "$SO" | grep -q BIND_NOW; then
@@ -284,4 +288,8 @@ jobs:
           assert not unguarded, unguarded
           print('needs', len(needed), 'cuvis functions; missing:', c.missing_symbols)
           print('built against:', c.built_against_version, '| loaded:', c.library_version)
+          # Both sides come from the same banner, so a build that lost the define shows up
+          # here rather than as a silent 'unknown' in someone's bug report.
+          assert c.built_against_hash and c.library_hash, (c.built_against_version, c.library_version)
+          assert c.built_against_hash == c.library_hash, 'CI builds and runs the same SDK'
           "@
