@@ -28,4 +28,18 @@ target_link_libraries(${target_name} PRIVATE ${Python_LIBRARIES})
 
 set_property(TARGET ${target_name} PROPERTY SWIG_COMPILE_OPTIONS -doxygen)
 
+if(MSVC)
+  # Delay-load cuvis.dll so a symbol missing from the deployed library no longer
+  # breaks `import cuvis_il`; the failure moves to the call, where the SEH guard in
+  # cuvis_il.i turns it into a Python exception.
+  target_link_options(${target_name} PRIVATE "/DELAYLOAD:cuvis.dll")
+  target_link_libraries(${target_name} PRIVATE delayimp)
+
+elseif(UNIX)
+  # Lazy binding, so an outdated libcuvis.so that is missing a symbol does not fail
+  # the import; cuvis_il/__init__.py replaces whatever is missing with a raising stub.
+  # Explicit because distro hardening defaults may otherwise inject -z now.
+  target_link_options(${target_name} PRIVATE "LINKER:-z,lazy")
+endif()
+
 add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${SWIG_OUTPUT_DIR}/cuvis_il.py"  $<TARGET_FILE_DIR:${target_name}> )

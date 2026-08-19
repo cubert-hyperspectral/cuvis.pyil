@@ -89,6 +89,31 @@ jobs:
           echo "Version output: $OUTPUT"
           echo "$OUTPUT" | grep -q "CUBERT SDK" || (echo "Version check failed!" && exit 1)
 
+      - name: Smoke test - symbol introspection
+        run: |
+          # Meaningful against a matched SDK: proves the extension can report which cuvis
+          # functions it needs, and that every one of them is reachable through a Python
+          # entry point, which is what lets a missing one raise instead of aborting.
+          python -c "
+          import cuvis_il
+          from cuvis_il import cuvis_il as c
+          needed = cuvis_il._needed_symbols()
+          assert len(needed) > 100, needed
+          unguarded = [n for n in needed if cuvis_il._entry_point_for(n) is None]
+          assert not unguarded, unguarded
+          print('needs', len(needed), 'cuvis functions; missing:', c.missing_symbols)
+          print('built against:', c.built_against_version, '| loaded:', c.library_version)
+          # Both sides come from the same banner, so a build that lost the define shows up
+          # here rather than as a silent 'unknown' in someone's bug report.
+          assert c.built_against_hash and c.library_hash, (c.built_against_version, c.library_version)
+          assert c.built_against_hash == c.library_hash, 'CI builds and runs the same SDK'
+          "
+          SO=$(python -c "from cuvis_il import _cuvis_pyil; print(_cuvis_pyil.__file__)")
+          if readelf -d "$SO" | grep -q BIND_NOW; then
+            echo "extension is BIND_NOW: lazy binding is defeated, a missing symbol would fail the import"
+            exit 1
+          fi
+
   setup-windows-deps:
     needs: prepare
     runs-on: windows-latest
@@ -244,3 +269,27 @@ jobs:
           $output = python -c "from cuvis_il import cuvis_il; print(cuvis_il.cuvis_version_swig())"
           Write-Output "Version output: $output"
           if ($output -notmatch "CUBERT SDK") { Write-Output "Version check failed!"; exit 1 }
+
+      - name: Smoke test - symbol introspection
+        shell: pwsh
+        env:
+          CUVIS: C:\Program Files\Cuvis\bin
+        run: |
+          .\venv\Scripts\Activate.ps1
+          # Meaningful against a matched SDK: proves the extension can report which cuvis
+          # functions it needs, and that every one of them is reachable through a Python
+          # entry point, which is what lets a missing one raise instead of crashing.
+          python -c @"
+          import cuvis_il
+          from cuvis_il import cuvis_il as c
+          needed = cuvis_il._needed_symbols()
+          assert len(needed) > 100, needed
+          unguarded = [n for n in needed if cuvis_il._entry_point_for(n) is None]
+          assert not unguarded, unguarded
+          print('needs', len(needed), 'cuvis functions; missing:', c.missing_symbols)
+          print('built against:', c.built_against_version, '| loaded:', c.library_version)
+          # Both sides come from the same banner, so a build that lost the define shows up
+          # here rather than as a silent 'unknown' in someone's bug report.
+          assert c.built_against_hash and c.library_hash, (c.built_against_version, c.library_version)
+          assert c.built_against_hash == c.library_hash, 'CI builds and runs the same SDK'
+          "@
