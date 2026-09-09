@@ -60,12 +60,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ["22.04", "24.04"]
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        ubuntu: ["22.04", "24.04", "26.04"]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         arch:   ["amd64", "arm64"]
+        exclude:
+          # The SDK ships no arm64 packages for 26.04, so cuvis_base has no such variant.
+          - { ubuntu: "26.04", arch: "arm64" }
         include:
           # numpy pinned per python version
-          - { python: "3.9",  numpy: "2.0.0" }
           - { python: "3.10", numpy: "2.0.0" }
           - { python: "3.11", numpy: "2.0.0" }
           - { python: "3.12", numpy: "2.0.0" }
