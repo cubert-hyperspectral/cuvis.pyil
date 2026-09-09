@@ -23,6 +23,7 @@ MACHINE = {"amd64": "x86_64", "arm64": "aarch64"}
 RUNNER = {("22.04", "amd64"): "ubuntu-latest", ("24.04", "amd64"): "ubuntu-latest",
           ("22.04", "arm64"): "ubuntu-22.04-arm", ("24.04", "arm64"): "ubuntu-24.04-arm"}
 IMAGE_RUNNER = {"amd64": "ubuntu-latest", "arm64": "ubuntu-24.04-arm"}
+ABSENT = ("no such manifest", "manifest unknown", "not found")
 
 
 def tag_suffix(arch):
@@ -34,7 +35,15 @@ def base_image(sdk, ubuntu, arch):
 
 
 def exists(image):
-    return subprocess.run(["docker", "manifest", "inspect", image], capture_output=True).returncode == 0
+    # Only a registry answer of "not there" counts as missing; a transport error would
+    # otherwise drop a variant that exists, silently on a pre-release and as a failed
+    # release on a final one.
+    probe = subprocess.run(["docker", "manifest", "inspect", image], capture_output=True, text=True)
+    if probe.returncode == 0:
+        return True
+    if any(answer in probe.stderr.lower() for answer in ABSENT):
+        return False
+    sys.exit(f"cannot tell whether {image} exists: {probe.stderr.strip()}")
 
 
 def wheel_jobs(variants):
