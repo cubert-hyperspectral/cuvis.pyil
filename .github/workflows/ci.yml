@@ -1,19 +1,62 @@
-name: Build & Test cuvis.pyil
+name: CI
 
 on:
   pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-
-  prepare:
+  meta:
+    name: Resolve versions
     runs-on: ubuntu-latest
     outputs:
-      cuvis_version: "3.5.3"
+      sdk: ${{ steps.meta.outputs.sdk }}
     steps:
-      - run: echo "cuvis_version=3.5.3" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v5
+
+      - name: Read pyproject.toml
+        id: pyproject
+        run: |
+          echo "version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')" >> "$GITHUB_OUTPUT"
+
+      - id: meta
+        uses: cubert-hyperspectral/cuvis.docker/.github/actions/release-meta@main
+        with:
+          version: ${{ steps.pyproject.outputs.version }}
+
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: cubert-hyperspectral/cuvis.docker/.github/actions/changelog@main
+
+      - name: Require a changelog entry
+        if: >
+          github.event_name == 'pull_request'
+          && !contains(github.event.pull_request.labels.*.name, 'no-changelog')
+        run: |
+          if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx CHANGELOG.md; then
+            echo "This pull request does not touch CHANGELOG.md."
+            echo "Add an entry under '## [Unreleased]' following CONTRIBUTING.md,"
+            echo "or label the pull request 'no-changelog' if the change is genuinely invisible to users."
+            exit 1
+          fi
 
   build-and-test:
-    needs: prepare
+    name: Build and test (ubuntu${{ matrix.ubuntu }}, py${{ matrix.python }}, ${{ matrix.arch }})
+    needs: meta
     strategy:
       fail-fast: false
       matrix:
@@ -35,7 +78,7 @@ jobs:
 
     runs-on: ${{ matrix.runner }}
     container:
-      image: cubertgmbh/cuvis_base:${{ needs.prepare.outputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}${{ matrix.tag_suffix }}
+      image: cubertgmbh/cuvis_base:${{ needs.meta.outputs.sdk }}-ubuntu${{ matrix.ubuntu }}${{ matrix.tag_suffix }}
     steps:
       - name: Install system build dependencies
         run: |
@@ -48,8 +91,7 @@ jobs:
           apt-get update
           apt-get install -y python${{ matrix.python }}-dev python${{ matrix.python }}-venv
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -115,7 +157,8 @@ jobs:
           fi
 
   setup-windows-deps:
-    needs: prepare
+    name: Download the SDK for Windows
+    needs: meta
     runs-on: windows-latest
     steps:
       - name: Cache CUVIS SDK zip
@@ -123,20 +166,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\cuvis_sdk.zip
-          key: cuvis-sdk-zip-windows-${{ needs.prepare.outputs.cuvis_version }}
+          key: cuvis-sdk-zip-windows-${{ needs.meta.outputs.sdk }}
 
       - name: Download CUVIS SDK zip
         if: steps.cache-cuvis-zip.outputs.cache-hit != 'true'
         shell: pwsh
         env:
-          CUVIS_VERSION: ${{ needs.prepare.outputs.cuvis_version }}
+          CUVIS_VERSION: ${{ needs.meta.outputs.sdk }}
         run: |
           $v = $env:CUVIS_VERSION
           $vn = $v -replace '\.', ''
           Invoke-WebRequest "https://cloud.cubert-gmbh.de/s/cuvis_sdk_release_ver_$vn/download" -OutFile cuvis_sdk.zip
 
   build-and-test-windows:
-    needs: [prepare, setup-windows-deps]
+    name: Build and test (windows, py${{ matrix.python }})
+    needs: [meta, setup-windows-deps]
     strategy:
       fail-fast: false
       matrix:
@@ -163,13 +207,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\cuvis_sdk.zip
-          key: cuvis-sdk-zip-windows-${{ needs.prepare.outputs.cuvis_version }}
+          key: cuvis-sdk-zip-windows-${{ needs.meta.outputs.sdk }}
           fail-on-cache-miss: true
 
       - name: Install CUVIS SDK
         shell: pwsh
         env:
-          CUVIS_VERSION: ${{ needs.prepare.outputs.cuvis_version }}
+          CUVIS_VERSION: ${{ needs.meta.outputs.sdk }}
         run: |
           $v = $env:CUVIS_VERSION
           Expand-Archive "${{ github.workspace }}\cuvis_sdk.zip" -DestinationPath cuvis_sdk
@@ -225,13 +269,11 @@ jobs:
 
           Write-Output "CUVIS SDK installed:"; Get-ChildItem $cuvisBin | Select-Object -First 20 | Format-Table -Auto | Out-String | Write-Output
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 

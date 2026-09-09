@@ -31,6 +31,23 @@ pip install cuvis-il
 or add `cuvis-il` to your project `requirements.txt` or `setup.py`.
 We currently provide pre-compiled binaries for Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14 for Windows, Ubuntu 22.04 and Ubuntu 24.04 (all 64-bit).
 
+### Via Docker
+
+The image `cubertgmbh/cuvis_pyil:<sdk version>-ubuntu<22.04|24.04|26.04>[-arm64]` ships the cuvis SDK and the matching `cuvis-il` in a virtual environment at `/opt/venv`, already on `PATH`.
+It is built by the release workflow of this repository from the wheels it publishes; the tag names the SDK version and always points at the newest interface layer for it.
+
+```dockerfile
+FROM cubertgmbh/cuvis_pyil:3.5.3-ubuntu24.04
+RUN pip install "cuvis==3.5.3.*"
+```
+
+adds the [cuvis](https://github.com/cubert-hyperspectral/cuvis.python) wrapper, or interactively
+
+```shell
+docker run -it cubertgmbh/cuvis_pyil:3.5.3-ubuntu24.04 bash
+pip install cuvis
+```
+
 ### Build manually via repository
 
 If you wish to download and use cuvis locally, clone the git repository
