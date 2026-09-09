@@ -1,6 +1,6 @@
 # Contributing to cuvis.pyil
 
-This document covers the branch model, the version scheme, the changelog conventions and the release process.
+This document covers the branch model, the version scheme and the changelog conventions.
 For bug reports and questions use [GitHub Issues](https://github.com/cubert-hyperspectral/cuvis.pyil/issues).
 
 ## Branch model
@@ -42,58 +42,3 @@ Rules the validator enforces:
 Each bullet names what changed first, in backticks (`cuvis_il.cuvis_il.<function>`, `cuvis.swig`, `CI`, `pyproject.toml`), then states the change in one sentence.
 A second sentence goes on its own indented continuation line.
 Do not write commit subjects, pull request numbers or author names into the changelog.
-
-## Releasing
-
-Releases run in a fixed order across repositories; see the [cuvis.docker README](https://github.com/cubert-hyperspectral/cuvis.docker#release-order).
-The `cuvis_base:<sdk>-ubuntu*` images must exist before cuvis.pyil can release for that SDK.
-A pre-release skips the variants whose base image is missing (typically Jetson) and finishes green with a warning annotation; a final release needs all of them and fails otherwise.
-
-### One-time repository setup
-
-- **Trusted publishers.** PyPI and TestPyPI bind a trusted publisher to a workflow file name.
-  The publisher for `cuvis-il` must name `release.yml`; it previously named `publish_version.yml`.
-- **Environments.** Three are needed under Settings -> Environments.
-  `release-gate` is left over from the old workflow and can be deleted.
-
-  | Environment | Used by | Secrets | Protection |
-  | --- | --- | --- | --- |
-  | `testpypi` | `publish-testpypi` | none, TestPyPI authenticates by OIDC | deployment tag rule `v*` |
-  | `pypi` | `publish-pypi` | none, PyPI authenticates by OIDC | deployment tag rule `v*`, plus required reviewers |
-  | `dockerhub` | `docker-image` | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | deployment tag rule `v*` |
-
-  The deployment rule is what ties an environment to the release decision.
-  Under Deployment branches and tags, choose "Selected branches and tags" and add one rule of type Tag with the pattern `v*`.
-  Only a run triggered by a version tag can then reach the environment and its secrets, and since pushing a `v*` tag is already restricted, the environment inherits that control.
-  An unrestricted environment lets a workflow run from any branch reach the Docker Hub token; the "protected branches only" setting is worse than useless here, because a tag ref is never a protected branch and the release is rejected outright.
-
-  `pypi` additionally carries required reviewers, which makes the PyPI publish the one human gate in the pipeline.
-  `dockerhub` holds an Organization Access Token scoped to read and write, the same token as in cuvis.docker.
-  Docker Hub OIDC would remove that token, but it needs a Team or Business plan, which `cubertgmbh` does not have.
-- **Branch protection.** `main` and `develop` require the `ci.yml` checks, and `main` forbids direct pushes.
-- **Tag protection.** A ruleset restricting who may push `v*` tags, so the deployment tag rule above means something.
-
-### Regular release from `develop`
-
-1. On `develop`, confirm which SDK version the interface layer targets.
-2. For a final version rename `## [Unreleased]` to `## [X.Y.Z.W] - <today>`, add the SDK statement line beneath it and a fresh empty `## [Unreleased]` above it.
-   For a pre-release leave the entries under `## [Unreleased]`.
-3. Set `[project].version` in `pyproject.toml` to `X.Y.Z.W` (or `X.Y.Z.WrcN`).
-4. Open a pull request `develop` -> `main` titled `release: vX.Y.Z.W` and merge it once CI is green.
-5. Tag the merge commit on `main` and push the tag:
-
-   ```bash
-   git checkout main && git pull
-   git tag -a vX.Y.Z.W -m "cuvis-il X.Y.Z.W"
-   git push origin vX.Y.Z.W
-   ```
-
-6. `release.yml` validates the tag, builds the wheels, publishes to TestPyPI, waits for approval on the `pypi` environment, publishes to PyPI, pushes the `cuvis_pyil` images, and for a final version creates the GitHub Release.
-7. Merge `main` back into `develop`.
-
-### If a release goes wrong
-
-A published PyPI version cannot be replaced.
-Fix forward with the next `PATCH`; yank on PyPI only when the artifact is actively harmful.
-Image tags carry the SDK version only and are overwritten by the next release for that SDK.
-Delete the tag and re-tag only while the release workflow has not yet published anything.
