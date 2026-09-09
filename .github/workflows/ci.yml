@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sdk: ${{ steps.meta.outputs.sdk }}
+      test_matrix: ${{ steps.matrix.outputs.test_matrix }}
     steps:
       - uses: actions/checkout@v5
 
@@ -31,6 +32,14 @@ jobs:
         uses: cubert-hyperspectral/cuvis.docker/.github/actions/release-meta@main
         with:
           version: ${{ steps.pyproject.outputs.version }}
+
+      # A platform the SDK has not shipped has no cuvis_base image; warn and skip it here
+      # rather than let every job for it fail on an image that cannot be pulled.
+      - name: Select the variants that have a cuvis_base image
+        id: matrix
+        env:
+          SDK: ${{ steps.meta.outputs.sdk }}
+        run: python3 .github/scripts/build_matrix.py --sdk "$SDK" >> "$GITHUB_OUTPUT"
 
   changelog:
     name: Changelog
@@ -59,24 +68,7 @@ jobs:
     needs: meta
     strategy:
       fail-fast: false
-      matrix:
-        ubuntu: ["22.04", "24.04", "26.04"]
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        arch:   ["amd64", "arm64"]
-        exclude:
-          # The SDK ships no arm64 packages for 26.04, so cuvis_base has no such variant.
-          - { ubuntu: "26.04", arch: "arm64" }
-        include:
-          # numpy pinned per python version
-          - { python: "3.10", numpy: "2.0.0" }
-          - { python: "3.11", numpy: "2.0.0" }
-          - { python: "3.12", numpy: "2.0.0" }
-          - { python: "3.13", numpy: "2.1.0" }
-          - { python: "3.14", numpy: "2.3.2" }
-          # runner + tag_suffix per arch (arm runner label is ubuntu-version-specific)
-          - { arch: "amd64",                   runner: "ubuntu-latest",    tag_suffix: ""       }
-          - { ubuntu: "22.04", arch: "arm64",  runner: "ubuntu-22.04-arm", tag_suffix: "-arm64" }
-          - { ubuntu: "24.04", arch: "arm64",  runner: "ubuntu-24.04-arm", tag_suffix: "-arm64" }
+      matrix: ${{ fromJSON(needs.meta.outputs.test_matrix) }}
 
     runs-on: ${{ matrix.runner }}
     container:

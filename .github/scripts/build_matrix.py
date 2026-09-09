@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Emit the Linux build matrices for the cuvis_base images that exist for one SDK version.
 
-Every image variant's cuvis_base is looked up on Docker Hub; the wheel matrix and the image
-matrix are written as GITHUB_OUTPUT lines with only the variants that resolved.
+Every image variant's cuvis_base is looked up on Docker Hub; the test, wheel and image
+matrices are written as GITHUB_OUTPUT lines with only the variants that resolved, so CI and
+the release skip a platform the SDK has not shipped instead of failing on its missing image.
 A missing base image is reported as a warning annotation; --strict turns it into a failure.
 """
 
@@ -21,6 +22,7 @@ PYTHONS = {"3.10": "2.0.0", "3.11": "2.0.0", "3.12": "2.0.0", "3.13": "2.1.0", "
 GLIBC = {"22.04": "2_35", "24.04": "2_39"}
 MACHINE = {"amd64": "x86_64", "arm64": "aarch64"}
 RUNNER = {("22.04", "amd64"): "ubuntu-latest", ("24.04", "amd64"): "ubuntu-latest",
+          ("26.04", "amd64"): "ubuntu-latest",
           ("22.04", "arm64"): "ubuntu-22.04-arm", ("24.04", "arm64"): "ubuntu-24.04-arm"}
 IMAGE_RUNNER = {"amd64": "ubuntu-latest", "arm64": "ubuntu-24.04-arm"}
 ABSENT = ("no such manifest", "manifest unknown", "not found")
@@ -46,15 +48,22 @@ def exists(image):
     sys.exit(f"cannot tell whether {image} exists: {probe.stderr.strip()}")
 
 
-def wheel_jobs(variants):
+def test_jobs(variants):
     return [
         {
             "ubuntu": ubuntu, "arch": arch, "python": python, "numpy": numpy,
             "runner": RUNNER[ubuntu, arch], "tag_suffix": tag_suffix(arch),
-            "platform_tag": f"manylinux_{GLIBC[ubuntu]}_{MACHINE[arch]}",
         }
         for ubuntu, arch in variants
         for python, numpy in PYTHONS.items()
+    ]
+
+
+def wheel_jobs(variants):
+    # A wheel job is a test job that also carries the tag the built wheel is renamed to.
+    return [
+        job | {"platform_tag": f"manylinux_{GLIBC[job['ubuntu']]}_{MACHINE[job['arch']]}"}
+        for job in test_jobs(variants)
     ]
 
 
@@ -90,6 +99,7 @@ def main():
     if not any(v in WHEEL_VARIANTS for v in available):
         sys.exit(f"no cuvis_base image to build wheels in exists for SDK {args.sdk}; release cuvis.docker v{args.sdk} first")
 
+    print(f"test_matrix={json.dumps({'include': test_jobs(available)})}")
     print(f"wheel_matrix={json.dumps({'include': wheel_jobs([v for v in available if v in WHEEL_VARIANTS])})}")
     print(f"image_matrix={json.dumps({'include': image_jobs(available)})}")
     print(f"image_tags={' '.join(f'cubertgmbh/cuvis_pyil:{args.sdk}-ubuntu{u}{tag_suffix(a)}' for u, a in available)}")

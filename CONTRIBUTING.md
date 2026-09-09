@@ -53,10 +53,25 @@ A pre-release skips the variants whose base image is missing (typically Jetson) 
 
 - **Trusted publishers.** PyPI and TestPyPI bind a trusted publisher to a workflow file name.
   The publisher for `cuvis-il` must name `release.yml`; it previously named `publish_version.yml`.
-- **Environments.** `testpypi`, `pypi` and `dockerhub` must exist under Settings -> Environments.
-  `pypi` carries the required reviewers that make the PyPI publish a human gate.
-  `dockerhub` holds the secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, the same as in cuvis.docker.
+- **Environments.** Three are needed under Settings -> Environments.
+  `release-gate` is left over from the old workflow and can be deleted.
+
+  | Environment | Used by | Secrets | Protection |
+  | --- | --- | --- | --- |
+  | `testpypi` | `publish-testpypi` | none, TestPyPI authenticates by OIDC | deployment tag rule `v*` |
+  | `pypi` | `publish-pypi` | none, PyPI authenticates by OIDC | deployment tag rule `v*`, plus required reviewers |
+  | `dockerhub` | `docker-image` | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | deployment tag rule `v*` |
+
+  The deployment rule is what ties an environment to the release decision.
+  Under Deployment branches and tags, choose "Selected branches and tags" and add one rule of type Tag with the pattern `v*`.
+  Only a run triggered by a version tag can then reach the environment and its secrets, and since pushing a `v*` tag is already restricted, the environment inherits that control.
+  An unrestricted environment lets a workflow run from any branch reach the Docker Hub token; the "protected branches only" setting is worse than useless here, because a tag ref is never a protected branch and the release is rejected outright.
+
+  `pypi` additionally carries required reviewers, which makes the PyPI publish the one human gate in the pipeline.
+  `dockerhub` holds an Organization Access Token scoped to read and write, the same token as in cuvis.docker.
+  Docker Hub OIDC would remove that token, but it needs a Team or Business plan, which `cubertgmbh` does not have.
 - **Branch protection.** `main` and `develop` require the `ci.yml` checks, and `main` forbids direct pushes.
+- **Tag protection.** A ruleset restricting who may push `v*` tags, so the deployment tag rule above means something.
 
 ### Regular release from `develop`
 

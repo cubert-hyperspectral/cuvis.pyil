@@ -19,7 +19,8 @@ Pre-releases (`b*`, `rc*`) are not listed.
   Pre-release tags (`a`, `b`, `rc` suffix) publish to PyPI as pre-releases and push the images but create no GitHub Release.
 - `CI` - `.github/scripts/build_matrix.py` builds wheels and images only for the variants whose `cuvis_base` image exists; a pre-release finishes with a warning for the missing ones, a final release fails.
 - `CI` - `.github/workflows/ci.yml` runs the build and smoke tests on every pull request and push to `develop` and `main`, and requires a changelog entry per pull request.
-  It builds and tests on Ubuntu 22.04, 24.04 and 26.04, matching the released image variants; 26.04 is amd64 only.
+  It builds and tests on every Ubuntu variant that has a `cuvis_base` image, so the tested platforms match the released image variants.
+  A variant the SDK has not shipped is reported as a warning and skipped instead of failing the run.
 - `docker/Dockerfile`, `docker-bake.hcl` - build `cubertgmbh/cuvis_pyil:<sdk>-ubuntu<22.04|24.04|26.04>[-arm64]` from `cuvis_base` and the wheels of the same release, in a virtual environment at `/opt/venv`.
   Ubuntu 26.04 exists for amd64 only and installs the 24.04 wheel.
   The image was previously built by cuvis.docker from a clone of `main`.
