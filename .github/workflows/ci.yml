@@ -206,61 +206,24 @@ jobs:
 
       - name: Install CUVIS SDK
         shell: pwsh
+        timeout-minutes: 15
         env:
           CUVIS_VERSION: ${{ needs.meta.outputs.sdk }}
         run: |
-          $v = $env:CUVIS_VERSION
           Expand-Archive "${{ github.workspace }}\cuvis_sdk.zip" -DestinationPath cuvis_sdk
-          $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
+          $installer = Get-ChildItem "cuvis_sdk\Cuvis $env:CUVIS_VERSION\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
           Write-Output "Installing: $($installer.FullName)"
 
-          $logDir = Join-Path $env:RUNNER_TEMP 'cuvis_install'
-          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-          $nsisLog  = Join-Path $logDir 'install.log'
-          $cuvisDir = 'C:\Program Files\Cuvis'
-          $cuvisBin = Join-Path $cuvisDir 'bin'
+          # Only installers from SDK 3.6.0 on run their bundled driver MSIs with msiexec /quiet under /S;
+          # an older one launches them /passive and hangs on a GUI nobody dismisses on a headless runner.
+          $proc = Start-Process $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          Write-Output "Installer exit code: $($proc.ExitCode)"
 
-          # WORKAROUND for a bug in the current Cuvis_C_SDK_Installer (NSIS): $SILENT is never set under /S,
-          # so its bundled runtime driver MSIs (C:\Program Files\Cuvis\Runtime\*.msi, e.g. WavesSetup222.msi)
-          # launch via `msiexec /i ... /passive` instead of /quiet. /passive pops a GUI that nobody dismisses
-          # on a headless runner, so the installer's ExecWait hangs forever. We kill those stuck interactive
-          # msiexec processes so the installer finishes, then re-install the runtime MSIs ourselves with /qn.
-          # Those driver components are secondary -> their failure must not fail the job.
-          # Upstream fix for future installer versions: branch the runtime-MSI calls on ${Silent}, use /quiet.
-          $proc = Start-Process $installer.FullName -ArgumentList '/S', "/LOG=$nsisLog", '/NORESTART' -PassThru
-          $timeoutSec = 600; $elapsed = 0; $grace = 20; $firstSeen = @{}
-          while (-not $proc.HasExited -and $elapsed -lt $timeoutSec) {
-              Start-Sleep -Seconds 10; $elapsed += 10
-              Get-CimInstance Win32_Process | Where-Object {
-                  $_.Name -eq 'msiexec.exe' -and $_.CommandLine -and
-                  $_.CommandLine -match 'Cuvis' -and $_.CommandLine -match '\.msi' -and $_.CommandLine -notmatch '/q' } |
-                ForEach-Object {
-                  if (-not $firstSeen.ContainsKey($_.ProcessId)) {
-                      $firstSeen[$_.ProcessId] = $elapsed
-                      Write-Output "Detected interactive runtime sub-installer (PID $($_.ProcessId)): $($_.CommandLine)"
-                  } elseif ($elapsed - $firstSeen[$_.ProcessId] -ge $grace) {
-                      Write-Output "Killing stuck sub-installer PID $($_.ProcessId) so the main installer can continue."
-                      Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-                  }
-                }
-              Write-Output "== t=${elapsed}s : installer running =="
-          }
-
-          if ($proc.HasExited) { Write-Output "Installer exit code: $($proc.ExitCode)" }
-          else { Write-Output "::warning::Installer still running at ${timeoutSec}s - terminating."; Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-
+          $cuvisBin = 'C:\Program Files\Cuvis\bin'
           if (-not (Test-Path "$cuvisBin\*.dll")) {
               Write-Output "::error::core CUVIS SDK missing under $cuvisBin"
-              if (Test-Path $nsisLog) { Write-Output '----- NSIS install.log -----'; Get-Content $nsisLog }
               exit 1
           }
-
-          Get-ChildItem (Join-Path $cuvisDir 'Runtime') -Filter *.msi -ErrorAction SilentlyContinue | ForEach-Object {
-              $msiLog = Join-Path $logDir ($_.BaseName + '.log')
-              $p = Start-Process msiexec -Wait -PassThru -ArgumentList '/i', "`"$($_.FullName)`"", '/qn', '/norestart', '/l*v', "`"$msiLog`""
-              Write-Output "Runtime component $($_.Name) -> msiexec exit $($p.ExitCode)"
-          }
-
           Write-Output "CUVIS SDK installed:"; Get-ChildItem $cuvisBin | Select-Object -First 20 | Format-Table -Auto | Out-String | Write-Output
 
       - uses: actions/checkout@v5
