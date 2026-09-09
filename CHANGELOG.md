@@ -18,6 +18,7 @@ Pre-releases (`b*`, `rc*`) are not listed.
 - `CI` - `.github/workflows/release.yml` is driven by `v*.*.*.*` tags: it validates the tag against `pyproject.toml`, this file and the `cuvis_base` images, builds the wheels, publishes to TestPyPI and PyPI, pushes the `cubertgmbh/cuvis_pyil` images, and creates a GitHub Release with the matching section here as notes.
   Pre-release tags (`a`, `b`, `rc` suffix) publish to PyPI as pre-releases and push the images but create no GitHub Release.
 - `CI` - `.github/scripts/build_matrix.py` builds wheels and images only for the variants whose `cuvis_base` image exists; a pre-release finishes with a warning for the missing ones, a final release fails.
+- `CI` - `release.yml` installs the published wheel from TestPyPI into every `cuvis_base` variant and imports it before promoting the release to PyPI, which is what allows one wheel to serve several Ubuntu releases.
 - `CI` - `.github/workflows/ci.yml` runs the build and smoke tests on every pull request and push to `develop` and `main`, and requires a changelog entry per pull request.
   It builds and tests on every Ubuntu variant that has a `cuvis_base` image, so the tested platforms match the released image variants.
   A variant the SDK has not shipped is reported as a warning and skipped instead of failing the run.
@@ -29,6 +30,10 @@ Pre-releases (`b*`, `rc*`) are not listed.
 
 ### Changed
 
+- One Linux wheel per Python version and architecture, built on the oldest Ubuntu that has a `cuvis_base` image, instead of one per Ubuntu release.
+  A `manylinux` tag states a minimum glibc, so the 22.04 build already served 24.04 and 26.04; the second wheel only ever duplicated it.
+- The platform tag now comes from `auditwheel`, which derives it from the symbols the extension references and fails the build when they outgrow the tag, instead of being stamped from the build container.
+  `libcuvis.so` is excluded from the repair, so the wheel still contains nothing but the binding and resolves the SDK installed on the system.
 - `cuvis.swig` - submodule advanced: the interface layer releases the GIL around SDK calls, string arguments are passed without copies, and reference-spectrum handling uses the struct-based shims with the white and target reference-spectrum names.
 - `cuvis.swig` - submodule advanced: the calibration wavelength reader tolerates a null pointer.
 

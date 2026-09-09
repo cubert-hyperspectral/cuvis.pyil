@@ -29,8 +29,8 @@ project environment, run
 pip install cuvis-il
 ```
 or add `cuvis-il` to your project `requirements.txt` or `setup.py`.
-We currently provide pre-compiled binaries for Python 3.10, 3.11, 3.12, 3.13 and 3.14 for Windows, Ubuntu 22.04 and Ubuntu 24.04 (all 64-bit).
-The Ubuntu 24.04 wheels also install on newer releases such as Ubuntu 26.04.
+We currently provide pre-compiled binaries for Python 3.10, 3.11, 3.12, 3.13 and 3.14, for Windows and for Linux on x86_64 and aarch64.
+The Linux wheels are built against glibc 2.35 and install on Ubuntu 22.04 and every newer release, 24.04 and 26.04 included.
 
 ### Via Docker
 

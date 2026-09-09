@@ -22,6 +22,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       sdk: ${{ steps.meta.outputs.sdk }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
+      test_matrix: ${{ steps.matrix.outputs.test_matrix }}
       wheel_matrix: ${{ steps.matrix.outputs.wheel_matrix }}
       image_matrix: ${{ steps.matrix.outputs.image_matrix }}
       image_tags: ${{ steps.matrix.outputs.image_tags }}
@@ -138,7 +139,7 @@ jobs:
 
           python -m build --wheel --no-isolation
 
-      - name: Tag wheel with correct Python and platform tags
+      - name: Tag the wheel for its Python version
         run: |
           PYTHON_TAG="py$(echo '${{ matrix.python }}' | tr -d '.')"
           WHEELS=$(find dist -type f -name "*.whl")
@@ -147,16 +148,25 @@ jobs:
             echo "Expected exactly 1 wheel, found $WHEEL_COUNT"
             exit 1
           fi
-          echo "Tagging $WHEELS with --python-tag=$PYTHON_TAG --platform-tag=${{ matrix.platform_tag }}"
-          python -m wheel tags --remove \
-            --python-tag="$PYTHON_TAG" \
-            --platform-tag=${{ matrix.platform_tag }} \
-            "$WHEELS"
+          python -m wheel tags --remove --python-tag="$PYTHON_TAG" "$WHEELS"
+
+      # auditwheel sets the platform tag from the symbols the extension actually references,
+      # and fails when they outgrow the requested policy, so the tag cannot quietly become a
+      # lie. libcuvis is excluded because the SDK provides it through ld.so.conf; without the
+      # exclusion auditwheel would vendor the whole SDK stack into the wheel.
+      - name: Check the manylinux policy and set the platform tag
+        run: |
+          pip install auditwheel patchelf
+          auditwheel repair --exclude libcuvis.so \
+            --only-plat --plat ${{ matrix.platform_tag }} \
+            -w wheelhouse dist/*.whl
+          test "$(find wheelhouse -name '*.whl' | wc -l)" -eq 1
+          ls -l wheelhouse
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-ubuntu${{ matrix.ubuntu }}-py${{ matrix.python }}-${{ matrix.arch }}
-          path: dist/*.whl
+          path: wheelhouse/*.whl
 
   setup-windows-deps:
     name: Download the SDK for Windows
@@ -367,9 +377,61 @@ jobs:
           echo "cuvis-il==${VERSION} never appeared on TestPyPI."
           exit 1
 
+  # The wheels claim a minimum glibc, not a distro, so one build serves several Ubuntu
+  # releases. This proves that claim on every release: that pip picks a wheel at all on
+  # that distro, that the loader resolves every library it needs there, and that the
+  # binding works against that distro's SDK build.
+  install-test:
+    name: Install from TestPyPI (ubuntu${{ matrix.ubuntu }}, py${{ matrix.python }}, ${{ matrix.arch }})
+    needs: [validate, publish-testpypi]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.validate.outputs.test_matrix) }}
+    container:
+      image: cubertgmbh/cuvis_base:${{ needs.validate.outputs.sdk }}-ubuntu${{ matrix.ubuntu }}${{ matrix.tag_suffix }}
+
+    steps:
+      - name: Install Python ${{ matrix.python }}
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends software-properties-common gnupg binutils
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python${{ matrix.python }} python${{ matrix.python }}-venv libpython${{ matrix.python }}
+
+      - name: Install cuvis-il as a user would
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          python${{ matrix.python }} -m venv /tmp/venv
+          # Dependencies come from PyPI; only cuvis-il itself is taken from TestPyPI.
+          /tmp/venv/bin/pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "cuvis-il==${VERSION}"
+          /tmp/venv/bin/pip show cuvis_il | grep -x "Version: ${VERSION}"
+
+      - name: The extension resolves against this distro
+        run: |
+          SO=$(find /tmp/venv -name "_cuvis_pyil*.so")
+          echo "$SO"
+          ldd "$SO"
+          if ldd "$SO" | grep -q "not found"; then
+            echo "::error::unresolved libraries on ubuntu${{ matrix.ubuntu }} ${{ matrix.arch }}"
+            exit 1
+          fi
+
+      - name: The binding works against this distro's SDK
+        run: |
+          /tmp/venv/bin/python -c "from cuvis_il import cuvis_il; print(cuvis_il.cuvis_version_swig())" \
+            | tee /tmp/banner
+          grep -q "CUBERT SDK" /tmp/banner
+
   publish-pypi:
     name: Publish to PyPI
-    needs: [validate, publish-testpypi]
+    needs: [validate, install-test]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:

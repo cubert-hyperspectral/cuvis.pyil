@@ -13,13 +13,11 @@ import os
 import subprocess
 import sys
 
-# Wheels are built on 22.04 and 24.04 only; the 26.04 image installs the 24.04 wheel, whose
-# manylinux_2_39 tag is satisfied by any newer glibc.
-WHEEL_VARIANTS = (("22.04", "amd64"), ("24.04", "amd64"), ("22.04", "arm64"), ("24.04", "arm64"))
-IMAGE_VARIANTS = WHEEL_VARIANTS + (("26.04", "amd64"),)
+VARIANTS = (("22.04", "amd64"), ("24.04", "amd64"), ("26.04", "amd64"),
+            ("22.04", "arm64"), ("24.04", "arm64"))
 ARCHES = ("amd64", "arm64")
 PYTHONS = {"3.10": "2.0.0", "3.11": "2.0.0", "3.12": "2.0.0", "3.13": "2.1.0", "3.14": "2.3.2"}
-GLIBC = {"22.04": "2_35", "24.04": "2_39"}
+GLIBC = {"22.04": "2_35", "24.04": "2_39", "26.04": "2_43"}
 MACHINE = {"amd64": "x86_64", "arm64": "aarch64"}
 RUNNER = {("22.04", "amd64"): "ubuntu-latest", ("24.04", "amd64"): "ubuntu-latest",
           ("26.04", "amd64"): "ubuntu-latest",
@@ -59,11 +57,17 @@ def test_jobs(variants):
     ]
 
 
+def oldest_per_arch(variants):
+    # One wheel per architecture, built on the oldest Ubuntu that has a base image: a
+    # manylinux tag states a minimum glibc, so the oldest build serves every newer release.
+    return [min(same_arch) for arch in ARCHES if (same_arch := [v for v in variants if v[1] == arch])]
+
+
 def wheel_jobs(variants):
-    # A wheel job is a test job that also carries the tag the built wheel is renamed to.
+    # A wheel job is a test job that also carries the manylinux policy auditwheel tags it with.
     return [
         job | {"platform_tag": f"manylinux_{GLIBC[job['ubuntu']]}_{MACHINE[job['arch']]}"}
-        for job in test_jobs(variants)
+        for job in test_jobs(oldest_per_arch(variants))
     ]
 
 
@@ -82,25 +86,27 @@ def main():
     parser.add_argument("--strict", action="store_true", help="fail instead of warn when a base image is missing")
     args = parser.parse_args()
 
-    available = [v for v in IMAGE_VARIANTS if exists(base_image(args.sdk, *v))]
-    missing = [v for v in IMAGE_VARIANTS if v not in available]
+    available = [v for v in VARIANTS if exists(base_image(args.sdk, *v))]
+    missing = [v for v in VARIANTS if v not in available]
+    wheels = oldest_per_arch(available)
 
     for ubuntu, arch in missing:
-        products = "no wheels and no cuvis_pyil image" if (ubuntu, arch) in WHEEL_VARIANTS else "no cuvis_pyil image"
         print(f"::warning title=cuvis_base image missing::{base_image(args.sdk, ubuntu, arch)} does not exist; "
-              f"{products} for ubuntu{ubuntu} {arch}", file=sys.stderr)
+              f"ubuntu{ubuntu} {arch} is not tested and gets no cuvis_pyil image", file=sys.stderr)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a", encoding="utf-8") as out:
             out.write("### cuvis_pyil variants\n\n")
-            out.writelines(f"- built: ubuntu{u} {a}\n" for u, a in available)
+            out.writelines(f"- built and tested: ubuntu{u} {a}\n" for u, a in available)
             out.writelines(f"- skipped, no `{base_image(args.sdk, u, a)}`: ubuntu{u} {a}\n" for u, a in missing)
+            out.write("\n### wheels\n\n")
+            out.writelines(f"- built on ubuntu{u} for {a}, tagged manylinux_{GLIBC[u]}\n" for u, a in wheels)
     if missing and args.strict:
         sys.exit(f"a final release needs every cuvis_base variant; release cuvis.docker v{args.sdk} with all of them first")
-    if not any(v in WHEEL_VARIANTS for v in available):
-        sys.exit(f"no cuvis_base image to build wheels in exists for SDK {args.sdk}; release cuvis.docker v{args.sdk} first")
+    if not available:
+        sys.exit(f"no cuvis_base image exists for SDK {args.sdk}; release cuvis.docker v{args.sdk} first")
 
     print(f"test_matrix={json.dumps({'include': test_jobs(available)})}")
-    print(f"wheel_matrix={json.dumps({'include': wheel_jobs([v for v in available if v in WHEEL_VARIANTS])})}")
+    print(f"wheel_matrix={json.dumps({'include': wheel_jobs(available)})}")
     print(f"image_matrix={json.dumps({'include': image_jobs(available)})}")
     print(f"image_tags={' '.join(f'cubertgmbh/cuvis_pyil:{args.sdk}-ubuntu{u}{tag_suffix(a)}' for u, a in available)}")
 
