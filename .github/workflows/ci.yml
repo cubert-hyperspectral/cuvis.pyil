@@ -188,6 +188,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
       - name: Install SWIG 4.2.1
         shell: pwsh
         run: |
@@ -203,6 +207,15 @@ jobs:
           path: ${{ github.workspace }}\cuvis_sdk.zip
           key: cuvis-sdk-zip-windows-${{ needs.meta.outputs.sdk }}
           fail-on-cache-miss: true
+
+      - name: Trust the Waves driver publisher
+        shell: pwsh
+        run: |
+          # The SDK installer hands its Waves drivers to DPInst, whose catalogs are signed by a
+          # publisher no machine trusts by default. DrvInst then raises the "install this device
+          # software?" prompt on a desktop nobody is watching and the whole installer waits on it.
+          certutil -addstore -f CA "${{ github.workspace }}\.github\driver-certs\globalsign-codesigning-ca-sha256-g3.cer"
+          certutil -addstore -f TrustedPublisher "${{ github.workspace }}\.github\driver-certs\avago-technologies-gmbh.cer"
 
       - name: Enable Windows Installer logging
         shell: pwsh
@@ -222,8 +235,8 @@ jobs:
           $installer = Get-ChildItem "cuvis_sdk\Cuvis $env:CUVIS_VERSION\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
           Write-Output "Installing: $($installer.FullName)"
 
-          # Diagnostic: the installer stalls on a clean runner somewhere in its bundled driver MSIs,
-          # so dump the process tree and installer logs while it is still stuck.
+          # A stall here means a bundled driver installer is waiting on a dialog, so report what the
+          # installer and Windows Installer were doing rather than only that time ran out.
           function Show-InstallState($label) {
               Write-Output "===== $label"
               Get-CimInstance Win32_Process |
@@ -244,13 +257,8 @@ jobs:
 
           $sw = [Diagnostics.Stopwatch]::StartNew()
           $proc = Start-Process $installer.FullName -ArgumentList '/S' -PassThru
-          $dumped = $false
           while (-not $proc.HasExited -and $sw.Elapsed.TotalMinutes -lt 11) {
               Start-Sleep -Seconds 20
-              if (-not $dumped -and $sw.Elapsed.TotalMinutes -ge 4) {
-                  Show-InstallState "state at t=$([int]$sw.Elapsed.TotalSeconds)s"
-                  $dumped = $true
-              }
           }
 
           if ($proc.HasExited) {
@@ -268,10 +276,6 @@ jobs:
               exit 1
           }
           Write-Output "CUVIS SDK installed:"; Get-ChildItem $cuvisBin | Select-Object -First 20 | Format-Table -Auto | Out-String | Write-Output
-
-      - uses: actions/checkout@v5
-        with:
-          submodules: recursive
 
       - uses: actions/setup-python@v6
         with:
