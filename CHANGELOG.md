@@ -27,6 +27,10 @@ Pre-releases (`b*`, `rc*`) are not listed.
   The image was previously built by cuvis.docker from a clone of `main`.
 - `CHANGELOG.md`, `CONTRIBUTING.md` - this file and the version, changelog and release conventions.
 - `cuvis_il` - reports the SDK version it was built against, the library version it loaded and the symbols that library lacks, so a mismatch between the installed SDK and the interface layer raises a descriptive error instead of failing at import.
+- `cuvis_il.cuvis_il.cuvis_proc_cont_set_reference_white_spectrum_swig`, `cuvis_il.cuvis_il.cuvis_proc_cont_set_reference_target_spectrum_swig` - set a white spectrum of sensor counts, or a target reflectance spectrum, on a processing context from numpy arrays.
+  The wavelength array and the value array must have the same non-zero length; the white setter also takes the counts' effective bit depth and integration time, and target values are reflectance fractions, 1.0 meaning 100 percent.
+- `cuvis_il.cuvis_il.cuvis_proc_cont_get_reference_white_spectrum_swig`, `cuvis_il.cuvis_il.cuvis_proc_cont_get_reference_target_spectrum_swig` - read a reference spectrum back into numpy arrays that own their memory, copied out of the arrays the C getters only borrow.
+  The white getter also returns the stored effective bit depth and integration time; an empty slot yields `status_not_available` with empty arrays.
 
 ### Changed
 
@@ -34,7 +38,7 @@ Pre-releases (`b*`, `rc*`) are not listed.
   A `manylinux` tag states a minimum glibc, so the 22.04 build already served 24.04 and 26.04; the second wheel only ever duplicated it.
 - The platform tag now comes from `auditwheel`, which derives it from the symbols the extension references and fails the build when they outgrow the tag, instead of being stamped from the build container.
   `libcuvis.so` is excluded from the repair, so the wheel still contains nothing but the binding and resolves the SDK installed on the system.
-- `cuvis.swig` - submodule advanced: the interface layer releases the GIL around SDK calls, string arguments are passed without copies, and reference-spectrum handling uses the struct-based shims with the white and target reference-spectrum names.
+- `cuvis.swig` - submodule advanced: the interface layer releases the GIL around SDK calls and string arguments are passed without copies.
 - `cuvis.swig` - submodule advanced: the calibration wavelength reader tolerates a null pointer.
 
 ### Removed
