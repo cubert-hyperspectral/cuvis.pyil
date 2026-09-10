@@ -217,14 +217,6 @@ jobs:
           certutil -addstore -f CA "${{ github.workspace }}\.github\driver-certs\globalsign-codesigning-ca-sha256-g3.cer"
           certutil -addstore -f TrustedPublisher "${{ github.workspace }}\.github\driver-certs\avago-technologies-gmbh.cer"
 
-      - name: Enable Windows Installer logging
-        shell: pwsh
-        run: |
-          $policy = 'HKLM:\Software\Policies\Microsoft\Windows\Installer'
-          New-Item -Path $policy -Force | Out-Null
-          Set-ItemProperty -Path $policy -Name Logging -Value 'voicewarmupx'
-          Set-ItemProperty -Path $policy -Name Debug -Value 7 -Type DWord
-
       - name: Install CUVIS SDK
         shell: pwsh
         timeout-minutes: 15
@@ -235,40 +227,8 @@ jobs:
           $installer = Get-ChildItem "cuvis_sdk\Cuvis $env:CUVIS_VERSION\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
           Write-Output "Installing: $($installer.FullName)"
 
-          # A stall here means a bundled driver installer is waiting on a dialog, so report what the
-          # installer and Windows Installer were doing rather than only that time ran out.
-          function Show-InstallState($label) {
-              Write-Output "===== $label"
-              Get-CimInstance Win32_Process |
-                  Where-Object { $_.Name -match 'msiexec|Cuvis_C_SDK|VC_redist|Vimba|DPInst|drvinst|rundll32' } |
-                  ForEach-Object { Write-Output "  pid=$($_.ProcessId) ppid=$($_.ParentProcessId) $($_.Name) :: $($_.CommandLine)" }
-              Get-ChildItem $env:TEMP -Filter 'MSI*.LOG' -ErrorAction SilentlyContinue |
-                  Sort-Object LastWriteTime | Select-Object -Last 2 | ForEach-Object {
-                      Write-Output "----- $($_.FullName) (last 40 lines)"
-                      Get-Content $_.FullName -Tail 40 | ForEach-Object { Write-Output "  $_" }
-                  }
-              foreach ($log in 'C:\Windows\INF\setupapi.dev.log', 'C:\Windows\DPINST.LOG') {
-                  if (Test-Path $log) {
-                      Write-Output "----- $log (last 25 lines)"
-                      Get-Content $log -Tail 25 | ForEach-Object { Write-Output "  $_" }
-                  }
-              }
-          }
-
-          $sw = [Diagnostics.Stopwatch]::StartNew()
-          $proc = Start-Process $installer.FullName -ArgumentList '/S' -PassThru
-          while (-not $proc.HasExited -and $sw.Elapsed.TotalMinutes -lt 11) {
-              Start-Sleep -Seconds 20
-          }
-
-          if ($proc.HasExited) {
-              Write-Output "Installer exit code: $($proc.ExitCode) after $($sw.Elapsed)"
-          } else {
-              Show-InstallState "still running at $($sw.Elapsed) - giving up"
-              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-              Write-Output "::error::installer did not finish"
-              exit 1
-          }
+          $proc = Start-Process $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          Write-Output "Installer exit code: $($proc.ExitCode)"
 
           $cuvisBin = 'C:\Program Files\Cuvis\bin'
           if (-not (Test-Path "$cuvisBin\*.dll")) {
