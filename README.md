@@ -29,7 +29,25 @@ project environment, run
 pip install cuvis-il
 ```
 or add `cuvis-il` to your project `requirements.txt` or `setup.py`.
-We currently provide pre-compiled binaries for Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14 for Windows, Ubuntu 22.04 and Ubuntu 24.04 (all 64-bit).
+We currently provide pre-compiled binaries for Python 3.10, 3.11, 3.12, 3.13 and 3.14, for Windows and for Linux on x86_64 and aarch64.
+The Linux wheels are built against glibc 2.35 and install on Ubuntu 22.04 and every newer release, 24.04 and 26.04 included.
+
+### Via Docker
+
+The image `cubertgmbh/cuvis_pyil:<sdk version>-ubuntu<22.04|24.04|26.04>[-arm64]` ships the cuvis SDK and the matching `cuvis-il` in a virtual environment at `/opt/venv`, already on `PATH`.
+The tag names the cuvis SDK version and always points at the newest interface layer built for it.
+
+```dockerfile
+FROM cubertgmbh/cuvis_pyil:3.5.3-ubuntu24.04
+RUN pip install "cuvis==3.5.3.*"
+```
+
+adds the [cuvis](https://github.com/cubert-hyperspectral/cuvis.python) wrapper, or interactively
+
+```shell
+docker run -it cubertgmbh/cuvis_pyil:3.5.3-ubuntu24.04 bash
+pip install cuvis
+```
 
 ### Build manually via repository
 
@@ -89,7 +107,7 @@ pip install numpy
 CMake will try to find the NumPy path using the `find_package(Python REQUIRED COMPONENTS Interpreter Development NumPy)`.
 To support the usage of a virtual environment, set the `Python_ROOT_DIR` variable to the directory containing your virtual environment.
 
-Our pre-compiled binaries are compiled with 2.0.0 (Python 3.9, 3.10, 3.11, 3.12 and 3.13).
+Our pre-compiled binaries are compiled with NumPy 2.0.0 for Python 3.10, 3.11 and 3.12, 2.1.0 for Python 3.13 and 2.3.2 for Python 3.14.
 This should ensure that the bindings are build in a forward and backwards compatible way.
 
 ### Getting involved

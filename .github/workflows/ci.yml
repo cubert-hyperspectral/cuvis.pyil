@@ -1,41 +1,78 @@
-name: Build & Test cuvis.pyil
+name: CI
 
 on:
   pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-
-  prepare:
+  meta:
+    name: Resolve versions
     runs-on: ubuntu-latest
     outputs:
-      cuvis_version: "3.5.3"
+      sdk: ${{ steps.meta.outputs.sdk }}
+      test_matrix: ${{ steps.matrix.outputs.test_matrix }}
     steps:
-      - run: echo "cuvis_version=3.5.3" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v5
+
+      - name: Read pyproject.toml
+        id: pyproject
+        run: |
+          echo "version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')" >> "$GITHUB_OUTPUT"
+
+      - id: meta
+        uses: cubert-hyperspectral/cuvis.docker/.github/actions/release-meta@main
+        with:
+          version: ${{ steps.pyproject.outputs.version }}
+
+      # A platform the SDK has not shipped has no cuvis_base image; warn and skip it here
+      # rather than let every job for it fail on an image that cannot be pulled.
+      - name: Select the variants that have a cuvis_base image
+        id: matrix
+        env:
+          SDK: ${{ steps.meta.outputs.sdk }}
+        run: python3 .github/scripts/build_matrix.py --sdk "$SDK" >> "$GITHUB_OUTPUT"
+
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: cubert-hyperspectral/cuvis.docker/.github/actions/changelog@main
+
+      - name: Require a changelog entry
+        if: >
+          github.event_name == 'pull_request'
+          && !contains(github.event.pull_request.labels.*.name, 'no-changelog')
+        run: |
+          if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx CHANGELOG.md; then
+            echo "This pull request does not touch CHANGELOG.md."
+            echo "Add an entry under '## [Unreleased]' following CONTRIBUTING.md,"
+            echo "or label the pull request 'no-changelog' if the change is genuinely invisible to users."
+            exit 1
+          fi
 
   build-and-test:
-    needs: prepare
+    name: Build and test (ubuntu${{ matrix.ubuntu }}, py${{ matrix.python }}, ${{ matrix.arch }})
+    needs: meta
     strategy:
       fail-fast: false
-      matrix:
-        ubuntu: ["22.04", "24.04"]
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
-        arch:   ["amd64", "arm64"]
-        include:
-          # numpy pinned per python version
-          - { python: "3.9",  numpy: "2.0.0" }
-          - { python: "3.10", numpy: "2.0.0" }
-          - { python: "3.11", numpy: "2.0.0" }
-          - { python: "3.12", numpy: "2.0.0" }
-          - { python: "3.13", numpy: "2.1.0" }
-          - { python: "3.14", numpy: "2.3.2" }
-          # runner + tag_suffix per arch (arm runner label is ubuntu-version-specific)
-          - { arch: "amd64",                   runner: "ubuntu-latest",    tag_suffix: ""       }
-          - { ubuntu: "22.04", arch: "arm64",  runner: "ubuntu-22.04-arm", tag_suffix: "-arm64" }
-          - { ubuntu: "24.04", arch: "arm64",  runner: "ubuntu-24.04-arm", tag_suffix: "-arm64" }
+      matrix: ${{ fromJSON(needs.meta.outputs.test_matrix) }}
 
     runs-on: ${{ matrix.runner }}
     container:
-      image: cubertgmbh/cuvis_base:${{ needs.prepare.outputs.cuvis_version }}-ubuntu${{ matrix.ubuntu }}${{ matrix.tag_suffix }}
+      image: cubertgmbh/cuvis_base:${{ needs.meta.outputs.sdk }}-ubuntu${{ matrix.ubuntu }}${{ matrix.tag_suffix }}
     steps:
       - name: Install system build dependencies
         run: |
@@ -48,8 +85,7 @@ jobs:
           apt-get update
           apt-get install -y python${{ matrix.python }}-dev python${{ matrix.python }}-venv
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -115,7 +151,8 @@ jobs:
           fi
 
   setup-windows-deps:
-    needs: prepare
+    name: Download the SDK for Windows
+    needs: meta
     runs-on: windows-latest
     steps:
       - name: Cache CUVIS SDK zip
@@ -123,20 +160,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\cuvis_sdk.zip
-          key: cuvis-sdk-zip-windows-${{ needs.prepare.outputs.cuvis_version }}
+          key: cuvis-sdk-zip-windows-${{ needs.meta.outputs.sdk }}
 
       - name: Download CUVIS SDK zip
         if: steps.cache-cuvis-zip.outputs.cache-hit != 'true'
         shell: pwsh
         env:
-          CUVIS_VERSION: ${{ needs.prepare.outputs.cuvis_version }}
+          CUVIS_VERSION: ${{ needs.meta.outputs.sdk }}
         run: |
           $v = $env:CUVIS_VERSION
           $vn = $v -replace '\.', ''
           Invoke-WebRequest "https://cloud.cubert-gmbh.de/s/cuvis_sdk_release_ver_$vn/download" -OutFile cuvis_sdk.zip
 
   build-and-test-windows:
-    needs: [prepare, setup-windows-deps]
+    name: Build and test (windows, py${{ matrix.python }})
+    needs: [meta, setup-windows-deps]
     strategy:
       fail-fast: false
       matrix:
@@ -150,6 +188,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
       - name: Install SWIG 4.2.1
         shell: pwsh
         run: |
@@ -163,75 +205,39 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\cuvis_sdk.zip
-          key: cuvis-sdk-zip-windows-${{ needs.prepare.outputs.cuvis_version }}
+          key: cuvis-sdk-zip-windows-${{ needs.meta.outputs.sdk }}
           fail-on-cache-miss: true
+
+      - name: Trust the Waves driver publisher
+        shell: pwsh
+        run: |
+          # The SDK installer hands its Waves drivers to DPInst, whose catalogs are signed by a
+          # publisher no machine trusts by default. DrvInst then raises the "install this device
+          # software?" prompt on a desktop nobody is watching and the whole installer waits on it.
+          certutil -addstore -f CA "${{ github.workspace }}\.github\driver-certs\globalsign-codesigning-ca-sha256-g3.cer"
+          certutil -addstore -f TrustedPublisher "${{ github.workspace }}\.github\driver-certs\avago-technologies-gmbh.cer"
 
       - name: Install CUVIS SDK
         shell: pwsh
+        timeout-minutes: 15
         env:
-          CUVIS_VERSION: ${{ needs.prepare.outputs.cuvis_version }}
+          CUVIS_VERSION: ${{ needs.meta.outputs.sdk }}
         run: |
-          $v = $env:CUVIS_VERSION
           Expand-Archive "${{ github.workspace }}\cuvis_sdk.zip" -DestinationPath cuvis_sdk
-          $installer = Get-ChildItem "cuvis_sdk\Cuvis $v\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
+          $installer = Get-ChildItem "cuvis_sdk\Cuvis $env:CUVIS_VERSION\" -Recurse -Filter "Cuvis_C_SDK_Installer_*.exe" | Select-Object -First 1
           Write-Output "Installing: $($installer.FullName)"
 
-          $logDir = Join-Path $env:RUNNER_TEMP 'cuvis_install'
-          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-          $nsisLog  = Join-Path $logDir 'install.log'
-          $cuvisDir = 'C:\Program Files\Cuvis'
-          $cuvisBin = Join-Path $cuvisDir 'bin'
+          $proc = Start-Process $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          Write-Output "Installer exit code: $($proc.ExitCode)"
 
-          # WORKAROUND for a bug in the current Cuvis_C_SDK_Installer (NSIS): $SILENT is never set under /S,
-          # so its bundled runtime driver MSIs (C:\Program Files\Cuvis\Runtime\*.msi, e.g. WavesSetup222.msi)
-          # launch via `msiexec /i ... /passive` instead of /quiet. /passive pops a GUI that nobody dismisses
-          # on a headless runner, so the installer's ExecWait hangs forever. We kill those stuck interactive
-          # msiexec processes so the installer finishes, then re-install the runtime MSIs ourselves with /qn.
-          # Those driver components are secondary -> their failure must not fail the job.
-          # Upstream fix for future installer versions: branch the runtime-MSI calls on ${Silent}, use /quiet.
-          $proc = Start-Process $installer.FullName -ArgumentList '/S', "/LOG=$nsisLog", '/NORESTART' -PassThru
-          $timeoutSec = 600; $elapsed = 0; $grace = 20; $firstSeen = @{}
-          while (-not $proc.HasExited -and $elapsed -lt $timeoutSec) {
-              Start-Sleep -Seconds 10; $elapsed += 10
-              Get-CimInstance Win32_Process | Where-Object {
-                  $_.Name -eq 'msiexec.exe' -and $_.CommandLine -and
-                  $_.CommandLine -match 'Cuvis' -and $_.CommandLine -match '\.msi' -and $_.CommandLine -notmatch '/q' } |
-                ForEach-Object {
-                  if (-not $firstSeen.ContainsKey($_.ProcessId)) {
-                      $firstSeen[$_.ProcessId] = $elapsed
-                      Write-Output "Detected interactive runtime sub-installer (PID $($_.ProcessId)): $($_.CommandLine)"
-                  } elseif ($elapsed - $firstSeen[$_.ProcessId] -ge $grace) {
-                      Write-Output "Killing stuck sub-installer PID $($_.ProcessId) so the main installer can continue."
-                      Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-                  }
-                }
-              Write-Output "== t=${elapsed}s : installer running =="
-          }
-
-          if ($proc.HasExited) { Write-Output "Installer exit code: $($proc.ExitCode)" }
-          else { Write-Output "::warning::Installer still running at ${timeoutSec}s - terminating."; Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-
+          $cuvisBin = 'C:\Program Files\Cuvis\bin'
           if (-not (Test-Path "$cuvisBin\*.dll")) {
               Write-Output "::error::core CUVIS SDK missing under $cuvisBin"
-              if (Test-Path $nsisLog) { Write-Output '----- NSIS install.log -----'; Get-Content $nsisLog }
               exit 1
           }
-
-          Get-ChildItem (Join-Path $cuvisDir 'Runtime') -Filter *.msi -ErrorAction SilentlyContinue | ForEach-Object {
-              $msiLog = Join-Path $logDir ($_.BaseName + '.log')
-              $p = Start-Process msiexec -Wait -PassThru -ArgumentList '/i', "`"$($_.FullName)`"", '/qn', '/norestart', '/l*v', "`"$msiLog`""
-              Write-Output "Runtime component $($_.Name) -> msiexec exit $($p.ExitCode)"
-          }
-
           Write-Output "CUVIS SDK installed:"; Get-ChildItem $cuvisBin | Select-Object -First 20 | Format-Table -Auto | Out-String | Write-Output
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
