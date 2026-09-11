@@ -13,6 +13,10 @@ Pre-releases (`b*`, `rc*`) are not listed.
 
 ## [Unreleased]
 
+## [3.6.0.0] - 2026-09-11
+
+Compiled against cuvis SDK 3.6.0.
+
 ### Added
 
 - `CI` - `.github/workflows/release.yml` is driven by `v*.*.*.*` tags: it validates the tag against `pyproject.toml`, this file and the `cuvis_base` images, builds the wheels, publishes to TestPyPI and PyPI, pushes the `cubertgmbh/cuvis_pyil` images, and creates a GitHub Release with the matching section here as notes.
@@ -34,6 +38,7 @@ Pre-releases (`b*`, `rc*`) are not listed.
 
 ### Changed
 
+- `CONTRIBUTING.md` - the branch model is now trunk based: `develop` is gone, every change is cut from `main` and merged back into it by pull request, and a commit on `main` is no longer necessarily a release.
 - One Linux wheel per Python version and architecture, built on the oldest Ubuntu that has a `cuvis_base` image, instead of one per Ubuntu release.
   A `manylinux` tag states a minimum glibc, so the 22.04 build already served 24.04 and 26.04; the second wheel only ever duplicated it.
 - The platform tag now comes from `auditwheel`, which derives it from the symbols the extension references and fails the build when they outgrow the tag, instead of being stamped from the build container.
