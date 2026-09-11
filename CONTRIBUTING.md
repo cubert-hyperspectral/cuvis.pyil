@@ -7,12 +7,12 @@ For bug reports and questions use [GitHub Issues](https://github.com/cubert-hype
 
 | Branch | Role |
 | --- | --- |
-| `main` | The latest released interface layer for the latest released cuvis SDK. Every commit on `main` is a release and carries a `v*` tag. Never receives direct pushes. |
-| `develop` | Integration branch for the next release. All feature work lands here. |
-| `feature/*` | One branch per change, cut from `develop`, merged back into `develop` by pull request. |
-| `hotfix/*` | Cut from `main` when a released version needs a fix before `develop` is ready to release. Merged into `main` by pull request, tagged, then merged back into `develop`. |
+| `main` | Trunk, and the latest released interface layer for the latest released cuvis SDK. Never receives direct pushes. |
+| `feature/*` | One branch per change, cut from `main`, merged back into `main` by pull request. |
 
-A pull request into `develop` or `main` must pass the `ci.yml` build and changelog jobs.
+A release is a `v*` tag on a commit of `main`; not every commit on `main` is a release.
+
+A pull request into `main` must pass the `ci.yml` build and changelog jobs.
 
 ## Version scheme
 
