@@ -13,6 +13,11 @@ Pre-releases (`b*`, `rc*`) are not listed.
 
 ## [Unreleased]
 
+## [3.6.1.0] - 2026-10-16
+
+Compiled against cuvis SDK 3.6.1.
+No interface changes.
+
 ## [3.6.0.0] - 2026-09-11
 
 Compiled against cuvis SDK 3.6.0.
