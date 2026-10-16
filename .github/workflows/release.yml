@@ -98,6 +98,7 @@ jobs:
     steps:
       - name: Install system build dependencies
         run: |
+          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
           apt-get update
           apt-get install -y software-properties-common gnupg g++ swig cmake
 
@@ -364,6 +365,7 @@ jobs:
     steps:
       - name: Install Python ${{ matrix.python }}
         run: |
+          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
           apt-get update
           apt-get install -y --no-install-recommends software-properties-common gnupg binutils
           add-apt-repository -y ppa:deadsnakes/ppa
