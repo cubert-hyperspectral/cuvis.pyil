@@ -23,6 +23,10 @@ No interface changes.
 - Wheels and `cuvis_pyil` images rebuilt against the cuvis SDK 3.6.1 installers re-published on 2026-11-03.
 - `CI` keys the cached Windows SDK zip on the download share's ETag, so a re-published SDK is no longer served from a stale cache.
 
+### Security
+
+- `CI` bumps `pypa/gh-action-pypi-publish` to `v1.14.3`, which drops the revoked `emSign` root CA from the trust store Sigstore uses for Trusted Publishing (GHSA-5xjx-3w67-w9x9).
+
 ## [3.6.1.1] - 2026-10-28
 
 Compiled against cuvis SDK 3.6.1.
