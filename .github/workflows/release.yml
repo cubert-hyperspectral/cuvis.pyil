@@ -339,7 +339,7 @@ jobs:
       - name: List wheels
         run: ls -lh dist/
 
-      - uses: pypa/gh-action-pypi-publish@v1.13.0
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
         with:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true
@@ -428,7 +428,7 @@ jobs:
           pattern: wheel-*
           merge-multiple: true
 
-      - uses: pypa/gh-action-pypi-publish@v1.13.0
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
 
   docker-image:
     name: Build and push image (${{ matrix.arch }})
