@@ -13,6 +13,16 @@ Pre-releases (`b*`, `rc*`) are not listed.
 
 ## [Unreleased]
 
+## [3.6.1.2] - 2026-11-03
+
+Compiled against cuvis SDK 3.6.1.
+No interface changes.
+
+### Changed
+
+- Wheels and `cuvis_pyil` images rebuilt against the cuvis SDK 3.6.1 installers re-published on 2026-11-03.
+- `CI` keys the cached Windows SDK zip on the download share's ETag, so a re-published SDK is no longer served from a stale cache.
+
 ## [3.6.1.1] - 2026-10-28
 
 Compiled against cuvis SDK 3.6.1.
